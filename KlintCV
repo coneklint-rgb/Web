@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Klint Cone - Supply Chain Technology Leader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light Gray */
+        }
+        .header-bg {
+            position: relative;
+            background-image: url('https://images.unsplash.com/photo-1585713181935-d5f622cc261b?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+            background-size: cover;
+            background-position: center;
+        }
+        .header-bg::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(20, 30, 40, 0.7);
+            z-index: 1;
+        }
+        .hero-bg {
+            background-image: url('https://images.unsplash.com/photo-1577563908411-5077b6dc7624?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+            background-size: cover;
+            background-position: center;
+            background-blend-mode: overlay;
+        }
+        .btn-primary {
+            background-image: linear-gradient(to right, #3b82f6, #2563eb);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            box-shadow: 0 4px 15px 0 rgba(59, 130, 246, 0.4);
+        }
+        .modal { transition: opacity 0.25s ease; }
+        .modal-active { overflow-x: hidden; overflow-y: auto; }
+        .modal-content { transition: transform 0.25s ease; }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            border-left-color: #3b82f6;
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Tab styling */
+        .tab-btn.active {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background-color: #eff6ff;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <!-- Header -->
+    <header class="header-bg sticky top-0 z-50 shadow-lg">
+        <nav class="container mx-auto px-6 py-4 flex justify-between items-center relative z-10">
+            <div class="flex items-center gap-3">
+                <a href="#" class="text-2xl font-bold text-white">Klint Cone</a>
+                <a href="https://www.linkedin.com/in/klint-cone/" target="_blank" rel="noopener noreferrer" class="text-white hover:opacity-80 transition">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                </a>
+            </div>
+            <div class="md:hidden">
+                <button id="menu-btn" class="text-white focus:outline-none">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section -->
+        <section class="hero-bg bg-slate-700 text-white py-12 sm:py-16">
+            <div class="container mx-auto px-6 text-center">
+                <h1 class="text-4xl md:text-5xl font-bold leading-tight mb-4">Innovating Global Supply Chains</h1>
+                <p class="text-lg md:text-xl text-slate-200 max-w-3xl mx-auto">
+                    A product leader with over a decade of experience architecting and deploying cutting-edge transportation and supply chain technology for the world's largest companies.
+                </p>
+            </div>
+        </section>
+
+        <!-- Two-column Layout -->
+        <div class="container mx-auto px-6 pt-8 pb-12">
+            <div class="lg:grid lg:grid-cols-12 lg:gap-12">
+                
+                <!-- Left Sticky Sidebar -->
+                <aside class="lg:col-span-4 lg:sticky lg:top-24 self-start mb-8 lg:mb-0">
+                    <div class="bg-white p-6 rounded-xl shadow-lg space-y-6">
+                        <div>
+                            <h2 class="text-2xl font-bold text-slate-900 mb-3">About Me</h2>
+                            <p class="text-slate-600 leading-relaxed">
+                                I specialize in transforming complex logistics challenges into streamlined, technology-driven solutions. My focus is on leveraging technology to deliver measurable results in cost reduction, efficiency, and visibility.
+                            </p>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold mb-3 border-t pt-4">Core Competencies</h3>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">Global TMS Implementation</span>
+                                <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">Freight Optimization</span>
+                                <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">Cost Reduction Strategy</span>
+                                <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">Product Roadmapping</span>
+                                <span class="bg-blue-100 text-blue-800 text-sm font-medium px-3 py-1 rounded-full">Stakeholder Alignment</span>
+                            </div>
+                        </div>
+                         <div>
+                            <h3 class="text-xl font-bold mb-3 border-t pt-4">Certifications</h3>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="bg-purple-100 text-purple-800 text-sm font-medium px-3 py-1 rounded-full">DMAIC Six Sigma Black Belt</span>
+                                <span class="bg-purple-100 text-purple-800 text-sm font-medium px-3 py-1 rounded-full">NASBITE CGBP</span>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Right Content Area -->
+                <div class="lg:col-span-8 space-y-8">
+                    
+                    <!-- Professional Experience -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h2 class="text-2xl font-bold text-slate-900 mb-4">Professional Experience</h2>
+                        <div class="space-y-6 border-l-2 border-slate-200 ml-2">
+                            <!-- Nike -->
+                            <div class="relative pl-8">
+                                <div class="absolute -left-[11px] top-1 h-5 w-5 bg-blue-500 rounded-full border-4 border-white"></div>
+                                <p class="text-slate-500 text-sm font-medium">June 2022 - Current</p>
+                                <h3 class="text-lg font-bold text-slate-800">Global Product Director, Supply Chain</h3>
+                                <p class="text-md font-medium text-slate-600 mb-2">Nike WHQ</p>
+                                <ul class="list-disc list-inside text-slate-600 text-sm space-y-1">
+                                    <li>Led product org for >$2B global freight spend.</li>
+                                    <li>Improved container mix by 32% YoY via new platforms.</li>
+                                </ul>
+                            </div>
+                            <!-- Walmart -->
+                             <div class="relative pl-8">
+                                <div class="absolute -left-[11px] top-1 h-5 w-5 bg-blue-500 rounded-full border-4 border-white"></div>
+                                <p class="text-slate-500 text-sm font-medium">Aug 2021 - June 2022</p>
+                                <h3 class="text-lg font-bold text-slate-800">Director, Optimization & Central Control</h3>
+                                <p class="text-md font-medium text-slate-600 mb-2">Walmart</p>
+                                <ul class="list-disc list-inside text-slate-600 text-sm space-y-1">
+                                    <li>Realized $65M in savings in FY22.</li>
+                                    <li>Enabled $22M in savings via Blue Yonder TMS strategy.</li>
+                                </ul>
+                            </div>
+                            <!-- Caterpillar -->
+                            <div class="relative pl-8">
+                                <div class="absolute -left-[11px] top-1 h-5 w-5 bg-blue-500 rounded-full border-4 border-white"></div>
+                                <p class="text-slate-500 text-sm font-medium">Feb 2017 - Oct 2019</p>
+                                <h3 class="text-lg font-bold text-slate-800">Manager, Network Analytics & Business Technology</h3>
+                                <p class="text-md font-medium text-slate-600 mb-2">Caterpillar Inc.</p>
+                                <ul class="list-disc list-inside text-slate-600 text-sm space-y-1">
+                                    <li>Delivered >$20M in freight cost reduction.</li>
+                                    <li>Reduced inventory by $11M through system alerts.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive AI Tools -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <div class="mb-4 border-b border-gray-200">
+                            <nav class="flex -mb-px" aria-label="Tabs">
+                                <button class="tab-btn active w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm" data-tab="ai-strategy">
+                                    ✨ AI Strategy Simulator
+                                </button>
+                                <button class="tab-btn w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="ai-contact">
+                                    ✨ AI Q&A / Contact
+                                </button>
+                            </nav>
+                        </div>
+
+                        <!-- AI Strategy Tab Content -->
+                        <div id="ai-strategy-content" class="tab-content">
+                             <p class="text-slate-600 mb-4 text-sm">Describe a supply chain challenge and get an instant, AI-powered strategic approach based on my experience.</p>
+                             <textarea id="strategy-prompt" rows="4" class="w-full p-3 border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., 'High international freight costs and poor container utilization...'"></textarea>
+                             <button id="get-strategy-btn" class="mt-4 w-full btn-primary text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center">Get AI Strategic Advice</button>
+                        </div>
+
+                        <!-- AI Contact Tab Content -->
+                        <div id="ai-contact-content" class="tab-content hidden">
+                            <p class="text-slate-600 mb-4 text-sm">Ask the AI a question about my experience, or send me a message directly.</p>
+                            <textarea id="question" name="question" rows="4" class="w-full p-3 border border-slate-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" placeholder="e.g., 'What was the biggest challenge implementing the JDA TMS?'" required></textarea>
+                            <div class="flex flex-col sm:flex-row gap-4 mt-4">
+                                 <button id="get-ai-answer-btn" class="w-full btn-primary text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center">Get Instant AI Answer</button>
+                                <button id="send-message-btn" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg">Send as Message</button>
+                            </div>
+                            <div id="form-feedback" class="mt-4 text-sm text-center"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 text-white py-8">
+        <div class="container mx-auto px-6 text-center text-slate-400">
+            <p>&copy; 2024 Klint Cone. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <!-- AI Response Modal -->
+    <div id="ai-modal" class="modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="modal-content bg-white rounded-lg shadow-xl w-full max-w-2xl transform -translate-y-10">
+            <div class="p-6">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h3 class="text-2xl font-bold text-slate-800">✨ AI-Generated Response</h3>
+                    <button id="close-modal-btn" class="text-slate-500 hover:text-slate-800 text-3xl leading-none">&times;</button>
+                </div>
+                <div id="modal-body" class="text-slate-600 leading-relaxed max-h-[60vh] overflow-y-auto pr-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const menuBtn = document.getElementById('menu-btn');
+        const getStrategyBtn = document.getElementById('get-strategy-btn');
+        const getAiAnswerBtn = document.getElementById('get-ai-answer-btn');
+        const sendMessageBtn = document.getElementById('send-message-btn');
+        const strategyPromptEl = document.getElementById('strategy-prompt');
+        const questionEl = document.getElementById('question');
+        const formFeedback = document.getElementById('form-feedback');
+        const aiModal = document.getElementById('ai-modal');
+        const modalBody = document.getElementById('modal-body');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        // --- Mobile Menu (Not used in this layout, but kept for smaller screens if needed) ---
+        // menuBtn.addEventListener('click', () => { /* ... */ });
+
+        // --- Tab Controls ---
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const tabId = btn.dataset.tab;
+                tabContents.forEach(content => {
+                    if (content.id === `${tabId}-content`) {
+                        content.classList.remove('hidden');
+                    } else {
+                        content.classList.add('hidden');
+                    }
+                });
+            });
+        });
+
+        // --- Modal Controls ---
+        function openModal() {
+            aiModal.classList.remove('opacity-0', 'pointer-events-none');
+            aiModal.classList.add('modal-active');
+            aiModal.querySelector('.modal-content').classList.remove('-translate-y-10');
+        }
+        function closeModal() {
+            aiModal.classList.add('opacity-0');
+            aiModal.querySelector('.modal-content').classList.add('-translate-y-10');
+            setTimeout(() => {
+                aiModal.classList.add('pointer-events-none');
+                aiModal.classList.remove('modal-active');
+            }, 250);
+        }
+        closeModalBtn.addEventListener('click', closeModal);
+        aiModal.addEventListener('click', (e) => e.target === aiModal && closeModal());
+
+        // --- Gemini API Call Function ---
+        async function callGeminiAPI(prompt) {
+            const apiKey = ""; // Placeholder
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ parts: [{ text: prompt }] }] };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error(`API error: ${response.status}`);
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                return text || "Could not generate a response.";
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                return `An error occurred: ${error.message}.`;
+            }
+        }
+
+        // --- Feature Logic ---
+        function showLoading() {
+            modalBody.innerHTML = '<div class="flex justify-center items-center py-10"><div class="spinner"></div></div>';
+            openModal();
+        }
+        function sanitizeHTML(str) {
+            const temp = document.createElement('div');
+            temp.textContent = str;
+            return temp.innerHTML;
+        }
+        function displayResponse(text) {
+            let html = sanitizeHTML(text)
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n\s*-\s/g, '<br>• ')
+                .replace(/\n/g, '<br>');
+            modalBody.innerHTML = `<p>${html}</p>`;
+        }
+        
+        // --- Event Listeners ---
+        getStrategyBtn.addEventListener('click', async () => {
+            const userInput = strategyPromptEl.value;
+            if (!userInput.trim()) return alert('Please describe a supply chain challenge.');
+            showLoading();
+            const systemPrompt = `You are a world-class supply chain technology consultant with the expertise of Klint Cone (Nike, Walmart, Caterpillar). You specialize in TMS, global freight optimization, and cost reduction. Given the problem, provide a high-level, strategic, and actionable response. Problem: "${userInput}"`;
+            const response = await callGeminiAPI(systemPrompt);
+            displayResponse(response);
+        });
+
+        getAiAnswerBtn.addEventListener('click', async () => {
+            const userInput = questionEl.value;
+            if (!userInput.trim()) return alert('Please ask a question.');
+            showLoading();
+            const pageContent = document.body.innerText;
+            const systemPrompt = `You are an AI assistant for Klint Cone's portfolio. Answer questions based *only* on the provided website content. Be concise. If the answer isn't in the text, say so. --- CONTENT --- ${pageContent} --- QUESTION --- "${userInput}"`;
+            const response = await callGeminiAPI(systemPrompt);
+            displayResponse(response);
+        });
+
+        sendMessageBtn.addEventListener('click', () => {
+            const question = questionEl.value;
+            if (!question.trim()) {
+                formFeedback.textContent = 'Please enter a message.';
+                formFeedback.className = 'mt-4 text-sm text-center text-red-600';
+            } else {
+                formFeedback.textContent = 'Thank you! Your message has been sent.';
+                formFeedback.className = 'mt-4 text-sm text-center text-green-700';
+                questionEl.value = '';
+            }
+            setTimeout(() => { formFeedback.textContent = ''; }, 4000);
+        });
+    </script>
+</body>
+</html>
