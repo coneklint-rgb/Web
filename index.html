@@ -136,6 +136,7 @@
   #title .sub{color:var(--violet);letter-spacing:5px;font-size:11px;margin:4px 0 18px}
   #title .modes{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
   #title .modes small{display:block;font-size:9px;letter-spacing:1px;opacity:.6;margin-top:4px}
+  #buildtag{margin-top:22px;font-size:8px;letter-spacing:3px;color:var(--violet);opacity:.45}
   #onlinePanel{margin-top:16px;display:flex;flex-direction:column;gap:10px;align-items:center;
     width:min(92vw,420px)}
   #onlinePanel .orow{display:flex;gap:8px;width:100%;justify-content:center;flex-wrap:wrap}
@@ -169,7 +170,15 @@
   /* loadout */
   #loadout h1{color:var(--cyan);font-size:clamp(18px,4.5vw,30px);letter-spacing:6px}
   #loSub{font-size:9px;letter-spacing:2px;color:var(--violet);margin:4px 0 12px;opacity:.8}
-  #loChassis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:min(94vw,560px);margin-bottom:12px}
+  #loChassis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:min(94vw,560px);margin-bottom:10px}
+  #loColorWrap{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  #loColorWrap span{font-size:9px;letter-spacing:2px;opacity:.65}
+  #loColors{display:flex;gap:7px}
+  .swatch{width:26px;height:26px;border:1px solid rgba(255,255,255,.22);cursor:pointer;
+    background:transparent;padding:0;position:relative}
+  .swatch i{position:absolute;inset:4px;background:currentColor;box-shadow:0 0 8px currentColor}
+  .swatch.sel{border-color:#fff;box-shadow:0 0 12px currentColor}
+  .swatch.sel::after{content:'';position:absolute;inset:-4px;border:1px solid currentColor;opacity:.5}
   .chcard{background:var(--panel);border:1px solid rgba(0,240,255,.3);color:var(--cyan);
     font-family:inherit;font-size:11px;letter-spacing:2px;padding:8px 6px;cursor:pointer;text-align:center}
   .chcard small{display:block;font-size:8.5px;letter-spacing:.5px;opacity:.6;margin-top:4px;line-height:1.5}
@@ -320,6 +329,7 @@
   </div>
   <button id="newCampBtn" class="hidden" style="margin-top:14px;font-size:10px;padding:8px 16px;
     border-color:rgba(255,51,102,.5);color:var(--red)">START NEW CAMPAIGN (DISCARD PROGRESS)</button>
+  <div id="buildtag">BUILD 1.1 · HULL COLOURS</div>
   <div id="onlinePanel" class="hidden">
     <div class="orow">
       <button id="quickBtn">⚡ QUICK MATCH</button>
@@ -342,6 +352,7 @@
   <h1 id="loTitle">LOADOUT</h1>
   <div id="loSub">CHOOSE YOUR CHASSIS AND WHAT YOU CARRY</div>
   <div id="loChassis"></div>
+  <div id="loColorWrap"><span>HULL</span><div id="loColors"></div></div>
   <div id="loAmmo"></div>
   <div id="loOwned" class="hidden"></div>
   <div id="loBudget">BUDGET ◇ 0 / 12</div>
@@ -492,11 +503,25 @@ const CHASSIS=[
  {id:2,name:'BULWARK',hp:125,fuel:40, pcap:92,  dr:0.88,
   desc:'soaks hits · short reach · sluggish', line:'125 HP · −12% DMG · FUEL 40 · PWR 92'},
 ];
+/* ---------- hull colours ---------- */
+const TANK_COLORS=[
+ {id:0,name:'CYAN',    hex:'#00f0ff'},
+ {id:1,name:'ROSE',    hex:'#ff3366'},
+ {id:2,name:'LIME',    hex:'#00ffa8'},
+ {id:3,name:'AMBER',   hex:'#ffb300'},
+ {id:4,name:'VIOLET',  hex:'#8f6bff'},
+ {id:5,name:'MAGENTA', hex:'#ff4df0'},
+];
+const colHex=i=>(TANK_COLORS[i]||TANK_COLORS[0]).hex;
+/* two tanks must never share a hull colour — resolved identically on every
+   device, so an online opponent sees the same pairing you do */
+function distinctColor(a,b){ return a===b ? (b+1)%TANK_COLORS.length : b; }
+
 /* ---------- loadout economy (non-campaign modes) ---------- */
 const LOADOUT_BUDGET=12;
 const AMMO_COST=[0,2,2,3,3,6,5];        /* SHELL is free and unlimited */
 const AMMO_MAX =[Infinity,5,5,4,4,1,2];
-const DEFAULT_LOADOUT={chassis:1, ammo:[0,2,1,1,1,0,0]};   /* costs exactly 12 */
+const DEFAULT_LOADOUT={chassis:1, color:0, ammo:[0,2,1,1,1,0,0]};   /* costs exactly 12 */
 function loCost(a){ let c=0; for(let i=1;i<AMMO_COST.length;i++) c+=(a[i]||0)*AMMO_COST[i]; return c; }
 /* AI kit per archetype — flavour + it now actually spends its ammo */
 const ARCH_LOADOUT=[
@@ -516,8 +541,10 @@ const store={
 function savedLoadout(){
   const s=store.get('vs_loadout');
   if(s && Array.isArray(s.ammo) && s.ammo.length===7 && loCost(s.ammo)<=LOADOUT_BUDGET
-     && CHASSIS[s.chassis]) return {chassis:s.chassis, ammo:s.ammo.slice()};
-  return {chassis:DEFAULT_LOADOUT.chassis, ammo:DEFAULT_LOADOUT.ammo.slice()};
+     && CHASSIS[s.chassis])
+    return {chassis:s.chassis, color:TANK_COLORS[s.color]?s.color:0, ammo:s.ammo.slice()};
+  return {chassis:DEFAULT_LOADOUT.chassis, color:DEFAULT_LOADOUT.color,
+          ammo:DEFAULT_LOADOUT.ammo.slice()};
 }
 
 /* ---------- campaign state ---------- */
@@ -1139,6 +1166,7 @@ class Game{
     /* ---- apply loadouts ---- */
     const P1=lo1||savedLoadout();
     this.t1.applyChassis(P1.chassis);
+    this.t1.color=colHex(P1.color||0);
     if(mode==='camp'){
       if(!CAMP) CAMP=newCamp();      /* never rely on the caller having built it */
       CAMP.level=level;
@@ -1158,7 +1186,14 @@ class Game{
     const P2 = lo2 || ((mode==='camp'||mode==='rt') ? ARCH_LOADOUT[level%ARCH_LOADOUT.length] : savedLoadout());
     this.t2.applyChassis(P2.chassis);
     this.t2.ammo=P2.ammo.slice(); this.t2.ammo[0]=Infinity;
-    this.lo1=P1; this.lo2=P2;
+    /* hostile defaults to rose; never let the two hulls collide */
+    const foeCol=distinctColor(P1.color||0, (P2.color!==undefined?P2.color:1));
+    this.t2.color=colHex(foeCol);
+    this.lo1=P1; this.lo2=Object.assign({},P2,{color:foeCol});
+    /* HUD bars inherit the hull colours */
+    const b1=document.querySelector('.hp.p1'), b2=document.querySelector('.hp.p2');
+    if(b1) b1.style.color=this.t1.color;
+    if(b2) b2.style.color=this.t2.color;
     this.particles=new Particles();
     this.projs=[]; this.trail=[];
     this.rt = mode==='rt';
@@ -1272,7 +1307,7 @@ class Game{
     else if(this.turn===1) tl=this.mode==='hotseat'?'P1 TURN':'YOUR TURN';
     else tl=this.mode==='hotseat'?'P2 TURN':'HOSTILE FIRING';
     ui.turn.textContent=tl;
-    ui.turn.style.color=(this.rt||this.turn===1)?'#00f0ff':'#ff3366';
+    ui.turn.style.color=(this.rt||this.turn===1)?this.t1.color:this.t2.color;
     const ht=this.humanTank();
     ui.rang.textContent=Math.round(ht.angle)+'°';
     ui.rpow.textContent=Math.round(ht.power);
@@ -2185,7 +2220,7 @@ class Game{
     let n=t.reconShots>0 ? r.path.length : Math.min(r.path.length,baseLen);
     if(AMMO[t.ammoSel].bigboy) n=Math.min(n,14); /* unguided: telemetry refuses */
     c.setLineDash([2,7]);
-    const col=t.reconShots>0?'#ffb300':(t===this.t1?'#00f0ff':'#ff3366');
+    const col=t.reconShots>0?'#ffb300':t.color;
     c.strokeStyle=col; c.globalAlpha=0.6;
     c.lineWidth=1.4; c.shadowColor=col; c.shadowBlur=6;
     c.beginPath();
@@ -2541,6 +2576,7 @@ $('windrow').addEventListener('click',()=>{
 let LO={chassis:1, ammo:[0,0,0,0,0,0,0]}, LO_DONE=null, LO_CANCEL=null, LO_CHASSIS_ONLY=false;
 function openLoadout(opts){
   LO = opts.start || savedLoadout();
+  if(LO.color===undefined) LO.color=0;
   LO_DONE = opts.onDeploy; LO_CANCEL = opts.onBack;
   LO_CHASSIS_ONLY = !!opts.chassisOnly;
   $('loTitle').textContent = opts.title || 'LOADOUT';
@@ -2560,6 +2596,16 @@ function renderLoadout(){
     b.innerHTML=`${c.name}<span class="stat">${c.line}</span><small>${c.desc}</small>`;
     b.addEventListener('click',()=>{ LO.chassis=c.id; renderLoadout(); });
     cc.appendChild(b);
+  }
+  /* hull colour */
+  const cw=$('loColors'); cw.innerHTML='';
+  for(const c of TANK_COLORS){
+    const b=document.createElement('button');
+    b.className='swatch'+(LO.color===c.id?' sel':'');
+    b.style.color=c.hex; b.title=c.name;
+    b.innerHTML='<i></i>';
+    b.addEventListener('click',()=>{ LO.color=c.id; renderLoadout(); });
+    cw.appendChild(b);
   }
   if(LO_CHASSIS_ONLY){
     /* campaign: arsenal comes from your stores */
@@ -2600,7 +2646,7 @@ function renderLoadout(){
 }
 $('loDeploy').addEventListener('click',()=>{
   if(!LO_CHASSIS_ONLY && loCost(LO.ammo)>LOADOUT_BUDGET) return;
-  const out={chassis:LO.chassis, ammo:LO.ammo.slice()};
+  const out={chassis:LO.chassis, color:LO.color||0, ammo:LO.ammo.slice()};
   store.set('vs_loadout',out);          /* remember it — one tap next time */
   $('loadout').classList.add('hidden');
   LO_DONE && LO_DONE(out);
