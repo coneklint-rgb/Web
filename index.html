@@ -46,6 +46,11 @@
   #windarrow{display:inline-block;transition:transform .3s}
   #scraprow{margin-top:2px;font-size:10px;color:var(--green);letter-spacing:2px;
     text-shadow:0 0 6px var(--green)}
+  #tierbtn{margin-top:6px;margin-left:6px;pointer-events:auto;background:var(--panel);
+    border:1px solid rgba(143,107,255,.5);color:var(--violet);font-family:inherit;
+    font-size:9px;letter-spacing:1px;padding:3px 8px;cursor:pointer;
+    text-shadow:0 0 6px var(--violet)}
+  #tierbtn:active{background:rgba(143,107,255,.2)}
   #mutebtn{margin-top:6px;margin-left:6px;pointer-events:auto;background:var(--panel);
     border:1px solid rgba(0,240,255,.4);color:var(--cyan);font-family:inherit;font-size:11px;
     letter-spacing:1px;padding:3px 10px;cursor:pointer;text-shadow:0 0 6px var(--cyan)}
@@ -307,7 +312,7 @@
     <div id="turnlab">YOUR TURN</div>
     <div id="windrow">WIND <span id="windarrow">▶</span> <span id="windval">0.0</span></div>
     <div id="scraprow" class="hidden">SCRAP ◈ <span id="scrapval">0</span></div>
-    <button id="menubtn">☰ MENU</button><button id="mutebtn">♪</button>
+    <button id="menubtn">☰ MENU</button><button id="mutebtn">♪</button><button id="tierbtn">◐ AUTO</button>
   </div>
   <div class="hp p2"><div class="label" id="lab2">HOSTILE // AX-9</div>
     <div class="hpbar"><i id="hp2" style="width:100%"></i></div>
@@ -375,7 +380,7 @@
   </div>
   <button id="newCampBtn" class="hidden" style="margin-top:14px;font-size:10px;padding:8px 16px;
     border-color:rgba(255,51,102,.5);color:var(--red)">START NEW CAMPAIGN (DISCARD PROGRESS)</button>
-  <div id="buildtag">BUILD 1.6 · DAILY</div>
+  <div id="buildtag">BUILD 1.7.1 · AUDIT</div>
   <div id="onlinePanel" class="hidden">
     <div class="orow">
       <button id="quickBtn">⚡ QUICK MATCH</button>
@@ -424,11 +429,18 @@
 <script>
 "use strict";
 /* ============ VECTOR SIEGE v4 — bitmap terrain · real-time · AI commander ============ */
+/* Browsers emit a few harmless messages that are not faults. ResizeObserver's
+   "loop completed with undelivered notifications" fires whenever a resize
+   callback triggers another layout pass — it breaks nothing, but surfacing it as
+   a red RUNTIME FAULT makes the game look broken when it is not. */
+const BENIGN_ERRORS=/ResizeObserver loop|Script error\.?$|^Non-Error promise rejection/i;
 window.addEventListener('error',e=>{
+  const msg=e.message||e.type||'';
+  if(BENIGN_ERRORS.test(msg)) return;
   const b=document.getElementById('errbanner');
   if(!b) return;
   b.style.display='block';
-  b.textContent='RUNTIME FAULT: '+(e.message||e.type)+(e.lineno?(' @ line '+e.lineno):'');
+  b.textContent='RUNTIME FAULT: '+msg+(e.lineno?(' @ line '+e.lineno):'');
 });
 const cv=document.getElementById('cv');
 const ctx=cv.getContext('2d');
@@ -482,6 +494,68 @@ function resize(){
 window.addEventListener('resize',resize);
 window.addEventListener('orientationchange',()=>setTimeout(resize,120));
 resize();
+
+/* ============================================================
+   RENDER TIER — presentation only.
+   HARD RULE: nothing that affects a game outcome may read from
+   TIER. Physics, damage, knockback and terrain are identical on
+   every device, or cross-device play desyncs. Only particle
+   counts, lighting and camera flourish scale.
+   ============================================================ */
+const TIER={
+  level:'high', particles:1, lights:1, postFx:1, auto:true,
+  _samples:[], _lastStep:0,
+  apply(lv){
+    this.level=lv;
+    const p={high:{particles:1,lights:1,postFx:1},
+             mid:{particles:0.55,lights:0.5,postFx:0.5},
+             low:{particles:0.3,lights:0,postFx:0}}[lv]||{particles:1,lights:1,postFx:1};
+    this.particles=p.particles; this.lights=p.lights; this.postFx=p.postFx;
+    const b=document.getElementById('tierbtn');
+    if(b) b.textContent='◐ '+lv.toUpperCase();
+  },
+  detect(){
+    const saved=store.get('vs_tier');
+    if(saved&&saved!=='auto'){ this.auto=false; this.apply(saved); return; }
+    this.auto=true;
+    const px=(window.innerWidth||1)*(window.innerHeight||1);
+    const mem=navigator.deviceMemory||4;
+    const cpu=navigator.hardwareConcurrency||4;
+    const coarse=matchMedia('(pointer:coarse)').matches;
+    /* a small coarse-pointer screen is a phone; a large one is a tablet */
+    let lv='high';
+    if(coarse && px<420000) lv='low';
+    else if(coarse || mem<=4 || cpu<=4) lv='mid';
+    this.apply(lv);
+  },
+  /* Tablets render the full pass beautifully for a minute and then throttle,
+     so the tier has to be able to fall as well as be chosen. */
+  sample(ms){
+    if(!this.auto) return;
+    this._samples.push(ms);
+    if(this._samples.length<90) return;
+    const avg=this._samples.reduce((a,b)=>a+b,0)/this._samples.length;
+    this._samples.length=0;
+    const now=performance.now();
+    if(now-this._lastStep<8000) return;
+    if(avg>26 && this.level!=='low'){
+      this._lastStep=now;
+      this.apply(this.level==='high'?'mid':'low');
+      toast('GRAPHICS EASED TO '+this.level.toUpperCase()+' — HOLDING FRAMERATE');
+    }
+  },
+  cycle(){
+    const order=['auto','high','mid','low'];
+    const cur=this.auto?'auto':this.level;
+    const next=order[(order.indexOf(cur)+1)%order.length];
+    store.set('vs_tier',next);
+    if(next==='auto'){ this.auto=true; this._samples.length=0; this.detect(); }
+    else { this.auto=false; this.apply(next); }
+    const b=document.getElementById('tierbtn');
+    if(b&&next==='auto') b.textContent='◐ AUTO';
+  }
+};
+const tParticles=n=>Math.max(1,Math.round(n*TIER.particles));
 
 const rand=(a,b)=>a+Math.random()*(b-a);
 /* Shot-scoped seeded RNG. Used ONLY for the randomness that changes where a
@@ -956,6 +1030,16 @@ function loadCampaign(){
   if(c && Array.isArray(c.ammo) && c.upg && typeof c.scrap==='number'){
     while(c.ammo.length<AMMO.length) c.ammo.push(0);
     if(!Array.isArray(c.snapshot)) c.snapshot=c.ammo.slice();
+    while(c.snapshot.length<AMMO.length) c.snapshot.push(0);
+    /* JSON.stringify(Infinity) === "null". Slot 0 is SHELL — the free, unlimited
+       round — so without this a resumed campaign loads with ammo[0]===null, which
+       fails the `<=0` stock check and leaves the player with no basic shells.
+       Re-hydrate it, and coerce any other nulled slot back to a number. */
+    c.ammo[0]=Infinity; c.snapshot[0]=Infinity;
+    for(let i=1;i<c.ammo.length;i++){
+      if(typeof c.ammo[i]!=='number'||!isFinite(c.ammo[i])) c.ammo[i]=0;
+      if(typeof c.snapshot[i]!=='number'||!isFinite(c.snapshot[i])) c.snapshot[i]=0;
+    }
     return c;
   }
   return null;
@@ -1382,6 +1466,7 @@ async function tauntCommander(g){
 class Particles{
   constructor(){this.list=[];}
   burst(x,y,color,n,spd,life,size){
+    n=Math.max(1,Math.round(n*TIER.particles));
     for(let i=0;i<n;i++){
       const a=rand(0,TAU), s=rand(spd*0.25,spd);
       this.list.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-rand(0,spd*0.4),
@@ -1412,7 +1497,7 @@ class Tank{
     this.color=color; this.facing=facing;
     this.human=human;
     this.angle=facing>0?45:135; this.power=60; this.dead=false;
-    this.vy=0; this.recoil=0; this.flash=0;
+    this.vy=0; this.vx=0; this.recoil=0; this.flash=0; this.tilt=0;
     this.ammo=[Infinity,0,0,0,0,0,0,0,0,0]; this.ammoSel=0;
     this.charges=0; this.supportUnlocked=false;
     this.missStreak=0; this.reconShots=0;
@@ -1432,18 +1517,40 @@ class Tank{
     /* unbury: if dirt covers the hull, pop upward */
     let up=0;
     while(up<28 && terr.solid(this.x,this.y-3)){ this.y--; up++; }
-    /* fall when unsupported */
-    if(!terr.solid(this.x,this.y+1)){
+    const supported = terr.solid(this.x,this.y+1);
+
+    /* Horizontal momentum, imparted by blasts. Deliberately part of settle()
+       rather than a separate system so a thrown tank obeys exactly the same
+       ground, wall and fall-damage rules as one that simply walked off a ledge. */
+    if(Math.abs(this.vx)>0.5){
+      const nx=clamp(this.x+this.vx*dt, 14, terr.w-14);
+      /* a wall stops you and eats most of the momentum */
+      if(terr.solid(nx,this.y-6) && terr.solid(nx,this.y-2)) this.vx*=-0.25;
+      else this.x=nx;
+      this.vx *= (1 - (supported?4.5:0.55)*dt);   /* tracks grip; air does not */
+      if(Math.abs(this.vx)<4) this.vx=0;
+    }
+    /* airborne hulls list into their direction of travel */
+    const wantTilt = supported ? 0 : clamp(this.vx/460,-0.5,0.5);
+    this.tilt += (wantTilt-this.tilt)*Math.min(1,dt*5);
+
+    if(!supported){
       this.vy+=520*dt;
       const ny=this.y+this.vy*dt;
       let landed=false;
       for(let yy=Math.ceil(this.y); yy<=ny; yy++){
         if(terr.solid(this.x,yy+1)){
           if(this.vy>340) this.damage(Math.round((this.vy-340)/26));
-          this.y=yy; this.vy=0; landed=true; break;
+          this.y=yy; this.vy=0; this.vx*=0.35; landed=true; break;
         }
       }
       if(!landed) this.y=ny;
+    } else if(this.vy<0){
+      /* Launched upward while still touching the ground. Without this branch
+         `supported` zeroes the impulse before the hull can lift off, and every
+         blast would only ever slide a tank sideways — never throw it. */
+      this.y += this.vy*dt;
+      this.vy += 520*dt;
     } else this.vy=0;
   }
   applyChassis(id){
@@ -1470,6 +1577,7 @@ class Tank{
     const col=this.flash>0?'#ffffff':this.color;
     if(this.flash>0) this.flash-=0.02;
     c.save(); c.translate(this.x,this.y);
+    if(this.tilt) c.rotate(this.tilt);
     c.strokeStyle=col; c.lineWidth=1.6;
     c.shadowColor=this.color; c.shadowBlur=14;
     /* silhouette reads the chassis at a glance */
@@ -1727,9 +1835,9 @@ class Game{
   }
   drawRidges(c){
     for(const L of this.ridges){
-      const off=this.camX*(1-L.depth);
       c.save();
-      c.translate(off*-0+0,0);   /* ridges are drawn in world space, shifted by depth */
+      /* Parallax is applied per-point below: screen x = worldX - camX*(1-depth),
+         so a low depth tracks the terrain and a high depth barely moves. */
       c.beginPath();
       c.moveTo(L.pts[0].x+this.camX*L.depth, WORLD_H);
       for(const p of L.pts) c.lineTo(p.x+this.camX*L.depth, p.y);
@@ -1897,19 +2005,31 @@ class Game{
     return true;
   }
   /* ---- turn flow (camp/hotseat) ---- */
+  /* Everything that must happen when a turn passes to a player: fuel, burning
+     ground, drowning. Extracted from beginTurn() because ONLINE never calls
+     beginTurn — it runs its own turn flip — and was therefore silently skipping
+     all of it: fuel never refilled (you could not move after turn one), napalm
+     never burned and never expired, and a submerged hull never drowned.
+     Returns false if the upkeep killed the tank. */
+  turnUpkeep(t,n){
+    t.fuel=t.maxFuel;
+    if(!this.rt){ this.tickHazards(t); if(t.dead){ this.finish(); return false; } }
+    if(this.waterLevel!=null && t.y>this.waterLevel && !t.dead){
+      const d=t.damage(15);
+      this.particles.burst(t.x,t.y-6,'#3ec6ff',18,120,1,2.4);
+      const who = this.mode==='hotseat' ? (n===1?'P1':'P2')
+                : this.online ? (t===this.humanTank()?'YOU':'OPPONENT')
+                : (n===1?'YOU':'AX-9');
+      toast(who+' — HULL FLOODING −'+d);
+      if(t.dead){ this.finish(); return false; }
+    }
+    return true;
+  }
   beginTurn(n){
     if(this.daily && n===1) this.dailyTurns++;
     this.turn=n;
     const t=this.active();
-    t.fuel=t.maxFuel;
-    if(!this.rt){ this.tickHazards(t); if(t.dead){ this.finish(); return; } }
-    if(this.waterLevel!=null && t.y>this.waterLevel && !t.dead){
-      const d=t.damage(15);
-      this.particles.burst(t.x,t.y-6,'#3ec6ff',18,120,1,2.4);
-      toast((n===1?(this.mode==='hotseat'?'P1':'YOU'):(this.mode==='hotseat'?'P2':'AX-9'))
-        +' — HULL FLOODING −'+d);
-      if(t.dead){ this.finish(); return; }
-    }
+    if(!this.turnUpkeep(t,n)) return;
     if((this.mode==='camp'||this.mode==='daily')&&n===2){
       this.phase='ai_think';
       this.updateHUD();
@@ -2227,6 +2347,7 @@ class Game{
       this.particles.burst(m.x+Math.cos(tank.angle*Math.PI/180)*8,
         m.y-Math.sin(tank.angle*Math.PI/180)*8,'#cfd8ff',1,90,0.9,1.8);
     if(!this.rt) this.phase='flight';
+    this.flightDeadline=perf+14000;   /* backstop: a wedged hull cannot hang the turn */
     this.shake=Math.max(this.shake,3);
     this.updateHUD();
   }
@@ -2341,7 +2462,7 @@ class Game{
     this.rings.push({x,y,r:4,max:ammo.r*2.1,c:ammo.color,a:1});
     this.rings.push({x,y,r:2,max:ammo.r*0.9,c:'#ffffff',a:1});   /* hot core */
     this.blooms.push({x,y,r:ammo.r*0.75,t:0});                    /* white flash frame */
-    for(let i=0;i<Math.min(14,4+ammo.r/6);i++){                   /* tumbling debris */
+    for(let i=0;i<tParticles(Math.min(14,4+ammo.r/6));i++){        /* tumbling debris */
       const a2=rand(0,TAU), sp2=rand(60,240);
       this.debris.push({x,y,vx:Math.cos(a2)*sp2,vy:Math.sin(a2)*sp2-rand(40,160),
         rot:rand(0,TAU),vr:rand(-9,9),size:rand(2,5),life:rand(0.7,1.5),t:0});
@@ -2351,6 +2472,7 @@ class Game{
     this.lastImpact={x,y};
     this.impactFocus={x,y,t:1.5,owner};
     if(owner&&owner.human) owner.lastMark={x,y};
+    this.applyKnockback(x,y,ammo);
     if(ammo.fire) this.layFire(x,y,ammo.fire,owner);
     if(ammo.well) this.openWell(x,y,owner);
     if(owner===this.t1){
@@ -2387,6 +2509,36 @@ class Game{
     }
     if(this.rt && (this.t1.dead||this.t2.dead)) this.finish();
     this.updateHUD();
+  }
+  /* Both tanks at rest on the ground. A turn must not end while a hull is still
+     tumbling: the snapshot would be taken mid-flight and the fall damage that
+     follows would land only on the shooter's device. */
+  tanksSettled(){
+    for(const t of [this.t1,this.t2]){
+      if(t.dead) continue;
+      if(Math.abs(t.vx)>2 || Math.abs(t.vy)>2) return false;
+      if(!this.terr.solid(t.x,t.y+1)) return false;
+    }
+    return true;
+  }
+  /* ---- blast impulse ----
+     Deterministic by construction (no RNG), because two devices replaying the
+     same shell must throw both tanks to exactly the same place. This is game
+     state, not presentation: it never scales with TIER. */
+  applyKnockback(x,y,ammo){
+    const reach=ammo.r+34;
+    for(const t of [this.t1,this.t2]){
+      if(t.dead) continue;
+      let dx=t.x-x, dy=(t.y-8)-y;
+      let d=Math.hypot(dx,dy);
+      if(d>reach) continue;
+      if(d<1){ dx=0; dy=-1; d=1; }          /* dead centre: straight up */
+      const falloff=1-(d/reach);
+      const power=Math.min(430, ammo.r*7.2)*falloff*falloff;
+      t.vx += (dx/d)*power;
+      t.vy += (dy/d)*power - power*0.42;    /* upward bias so blasts launch */
+      if(power>40) t.tilt += (dx>=0?1:-1)*0.12;
+    }
   }
   /* ---- hazards: burning ground and gravity wells ---- */
   layFire(x,y,turns,owner){
@@ -2523,6 +2675,9 @@ class Game{
       if(iActed){
         this.rollWind();
         this.turn = this.turn===1?2:1;
+        /* upkeep runs here, before the push, so the snapshot carries its result
+           and the opponent never has to recompute it */
+        if(!this.turnUpkeep(this.active(),this.turn)) return;
         NET.pushTurn(serializeState(this,NET.myTank));
         this.shotRec=null; shotRandOff();
         this.selfResolved=true;   /* our own device decided what that shell did to us */
@@ -2671,6 +2826,11 @@ class Game{
       return false;   /* the carrier is spent */
     }
     this.trail.push({x:p.x,y:p.y,t:0,c:am.color});
+    /* Purely cosmetic, but uncapped it peaked at ~1544 points during a lion
+       strike — each drawn with shadowBlur, which is among the most expensive
+       canvas operations. Cap it, and let the tier thin it further. */
+    const tcap=Math.round(420*TIER.particles);
+    if(this.trail.length>tcap) this.trail.splice(0,this.trail.length-tcap);
     if(p.x<-80||p.x>this.tw+80||p.y>WORLD_H+100) return false;
     const sh=structHitList(this.structures,p.x,p.y);
     if(sh){
@@ -2855,6 +3015,12 @@ class Game{
     } else if(this.bolts.length) this.bolts.length=0;
     this.t1.settle(this.terr,dt);
     this.t2.settle(this.terr,dt);
+    /* hulls thrown by a blast trail dust while airborne */
+    for(const t of [this.t1,this.t2]){
+      if(t.dead) continue;
+      if(Math.abs(t.vx)>60 && !this.terr.solid(t.x,t.y+1) && Math.random()<dt*22)
+        this.particles.burst(t.x,t.y+1,'rgba(150,170,220,0.7)',1,50,0.6,2);
+    }
     /* wounded hulls smoke */
     for(const t of [this.t1,this.t2]){
       if(t.dead||t.hp/t.maxHp>=0.3) continue;
@@ -2960,12 +3126,15 @@ class Game{
         }
         if(!this.projs.length) break;
       }
-      if(!this.projs.length && !this.lions.length && this.phase==='flight') this.endTurn();
+      if(!this.projs.length && !this.lions.length && this.phase==='flight'
+         && (this.tanksSettled()||perf>this.flightDeadline)) this.endTurn();
     }
     if(this.replaying){
-      const settled=!this.projs.length && !this.lions.length && !this.chunks.length;
+      const settled=!this.projs.length && !this.lions.length && !this.chunks.length
+        && this.tanksSettled();
       if(settled || perf>this.replayDeadline) this.finishReplay();
-    } else if(!this.projs.length && !this.lions.length && this.phase==='flight') this.endTurn();
+    } else if(!this.projs.length && !this.lions.length && this.phase==='flight'
+              && (this.tanksSettled()||perf>this.flightDeadline)) this.endTurn();
     for(const t of this.trail) t.t+=dt;
     this.trail=this.trail.filter(t=>t.t<1.4);
     if(this.impactFocus){
@@ -3433,6 +3602,7 @@ window.addEventListener('touchmove',e=>{
 
 /* ---------- audio unlock + mute ---------- */
 loadProfile();
+TIER.detect();
 CAMP = loadCampaign();
 setTimeout(()=>{ try{ refreshTitle(); }catch(e){} },0);          /* campaign now survives a reload */
 SFX.muted = store.get('vs_muted')===true;
@@ -3444,6 +3614,7 @@ function unlockAudio(){
 window.addEventListener('pointerdown',unlockAudio);
 window.addEventListener('keydown',unlockAudio);
 $('mutebtn').textContent = SFX.muted?'♪̶':'♪';
+$('tierbtn').addEventListener('click',e=>{ e.stopPropagation(); SFX.ui(); TIER.cycle(); });
 $('mutebtn').addEventListener('click',e=>{
   e.stopPropagation();
   SFX.init();
@@ -4051,7 +4222,9 @@ function openShop(nextLevel){
 let perf=0,last=0;
 function loop(t){
   perf=t;
-  const dt=Math.min(0.033,(t-last)/1000||0.016); last=t;
+  const raw=(t-last);
+  const dt=Math.min(0.033,raw/1000||0.016); last=t;
+  if(game && raw>0 && raw<500) TIER.sample(raw);
   if(game){
     if(aimAllowed()){
       const at=game.humanTank();
