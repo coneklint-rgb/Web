@@ -46,6 +46,10 @@
   #windarrow{display:inline-block;transition:transform .3s}
   #scraprow{margin-top:2px;font-size:10px;color:var(--green);letter-spacing:2px;
     text-shadow:0 0 6px var(--green)}
+  #mutebtn{margin-top:6px;margin-left:6px;pointer-events:auto;background:var(--panel);
+    border:1px solid rgba(0,240,255,.4);color:var(--cyan);font-family:inherit;font-size:11px;
+    letter-spacing:1px;padding:3px 10px;cursor:pointer;text-shadow:0 0 6px var(--cyan)}
+  #mutebtn:active{background:rgba(0,240,255,.2)}
   #menubtn{margin-top:6px;pointer-events:auto;background:var(--panel);
     border:1px solid rgba(143,107,255,.55);color:var(--violet);
     font-family:inherit;font-size:9px;letter-spacing:2px;padding:4px 12px;cursor:pointer;
@@ -159,6 +163,12 @@
     font-size:10px;letter-spacing:2px;padding:6px 14px;display:none;
     text-shadow:0 0 6px var(--red)}
   #peerwarn.show{display:block}
+  #incoming{position:fixed;top:26px;left:50%;transform:translateX(-50%);z-index:13;
+    background:rgba(42,5,16,.9);border:1px solid var(--red);color:var(--red);
+    font-size:10px;letter-spacing:3px;padding:5px 16px;display:none;
+    text-shadow:0 0 8px var(--red);animation:incpulse 1s ease-in-out infinite}
+  #incoming.show{display:block}
+  @keyframes incpulse{0%,100%{opacity:.75}50%{opacity:1}}
   #quickBtn{border-color:rgba(0,255,168,.6);color:var(--green);text-shadow:0 0 8px var(--green)}
   #waitmask{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;
     pointer-events:none}
@@ -259,6 +269,7 @@
 <div id="crt"></div><div id="vign"></div>
 <div id="netbadge"></div>
 <div id="peerwarn">OPPONENT DISCONNECTED</div>
+<div id="incoming">◂ INCOMING ▸</div>
 <div id="waitmask"><div>OPPONENT'S TURN…</div></div>
 
 <div id="hud">
@@ -269,7 +280,7 @@
     <div id="turnlab">YOUR TURN</div>
     <div id="windrow">WIND <span id="windarrow">▶</span> <span id="windval">0.0</span></div>
     <div id="scraprow" class="hidden">SCRAP ◈ <span id="scrapval">0</span></div>
-    <button id="menubtn">☰ MENU</button>
+    <button id="menubtn">☰ MENU</button><button id="mutebtn">♪</button>
   </div>
   <div class="hp p2"><div class="label" id="lab2">HOSTILE // AX-9</div>
     <div class="hpbar"><i id="hp2" style="width:100%"></i></div>
@@ -329,7 +340,7 @@
   </div>
   <button id="newCampBtn" class="hidden" style="margin-top:14px;font-size:10px;padding:8px 16px;
     border-color:rgba(255,51,102,.5);color:var(--red)">START NEW CAMPAIGN (DISCARD PROGRESS)</button>
-  <div id="buildtag">BUILD 1.1 · HULL COLOURS</div>
+  <div id="buildtag">BUILD 1.3 · SHOT REPLAY</div>
   <div id="onlinePanel" class="hidden">
     <div class="orow">
       <button id="quickBtn">⚡ QUICK MATCH</button>
@@ -431,6 +442,22 @@ window.addEventListener('orientationchange',()=>setTimeout(resize,120));
 resize();
 
 const rand=(a,b)=>a+Math.random()*(b-a);
+/* Shot-scoped seeded RNG. Used ONLY for the randomness that changes where a
+   shell lands (BIGBOY jitter, cluster spread, lion drops) so that a shot
+   replayed on the opponent's device scatters the same way. Cosmetic
+   randomness stays on Math.random() — routing particles through this would
+   let frame-timing differences consume different draws and desync the parts
+   that matter. */
+let _shotSeed=1, _shotOn=false;
+function shotRandReset(s){ _shotSeed=(s>>>0)||1; _shotOn=true; }
+function shotRandOff(){ _shotOn=false; }
+function srnd(a,b){
+  if(!_shotOn) return a+Math.random()*(b-a);
+  _shotSeed|=0; _shotSeed=(_shotSeed+0x6D2B79F5)|0;
+  let t=Math.imul(_shotSeed^(_shotSeed>>>15),1|_shotSeed);
+  t=(t+Math.imul(t^(t>>>7),61|t))^t;
+  return a+(((t^(t>>>14))>>>0)/4294967296)*(b-a);
+}
 /* seedable PRNG — only terrain/structure/star generation routes through this,
    so two devices given the same match seed build an identical battlefield.
    Cosmetic randomness (particles, AI jitter) stays on Math.random(). */
@@ -532,6 +559,296 @@ const ARCH_LOADOUT=[
  {chassis:0, ammo:[0,0,3,2,0,0,0]},   /* WRAITH  — evasive scout, trick shots */
 ];
 /* ---------- storage (persists on a real deploy; memory fallback in sandboxes) ---------- */
+/* ============================================================
+   SOUND — fully procedural Web Audio. No assets, no network.
+   Everything is synthesised from noise buffers and oscillators
+   so the game stays a single self-contained file.
+   Degrades silently anywhere AudioContext is unavailable.
+   ============================================================ */
+const SFX={
+  ctx:null, master:null, noiseBuf:null, ready:false, muted:false,
+  whistle:null, rain:null, tread:null, drill:null, lion:null,
+  /* --- lifecycle --- */
+  init(){
+    if(this.ready||this.dead) return;
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC){ this.dead=true; return; }
+      this.ctx=new AC();
+      this.master=this.ctx.createGain();
+      this.master.gain.value=this.muted?0:0.5;
+      this.master.connect(this.ctx.destination);
+      /* one 2s white-noise buffer, reused by every noise voice */
+      const n=Math.floor(this.ctx.sampleRate*2);
+      this.noiseBuf=this.ctx.createBuffer(1,n,this.ctx.sampleRate);
+      const d=this.noiseBuf.getChannelData(0);
+      for(let i=0;i<n;i++) d[i]=Math.random()*2-1;
+      this.ready=true;
+    }catch(e){ this.dead=true; }
+  },
+  resume(){ if(this.ctx&&this.ctx.state==='suspended') this.ctx.resume().catch(()=>{}); },
+  setMuted(m){
+    this.muted=m;
+    store.set('vs_muted',m);
+    if(this.master) this.master.gain.value=m?0:0.5;
+    const b=document.getElementById('mutebtn');
+    if(b) b.textContent=m?'♪̶':'♪';
+  },
+  /* --- primitives --- */
+  now(){ return this.ctx.currentTime; },
+  noise(dur,gain){
+    const s=this.ctx.createBufferSource();
+    s.buffer=this.noiseBuf; s.loop=true;
+    const g=this.ctx.createGain(); g.gain.value=gain==null?1:gain;
+    s.connect(g);
+    s.start(); s.stop(this.now()+dur+0.05);
+    return {src:s,gain:g};
+  },
+  tone(type,freq,dur,gain){
+    const o=this.ctx.createOscillator();
+    o.type=type; o.frequency.value=freq;
+    const g=this.ctx.createGain(); g.gain.value=gain==null?1:gain;
+    o.connect(g);
+    o.start(); o.stop(this.now()+dur+0.05);
+    return {osc:o,gain:g};
+  },
+  env(g,peak,attack,dur){
+    const t=this.now();
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002,peak),t+attack);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  },
+  /* --- one-shots --- */
+  /* gun report: noise crack + pitched thump, deeper on heavier chassis */
+  fire(chassis,ammo){
+    if(!this.ready||this.muted) return;
+    const t=this.now();
+    const big=(ammo&&ammo.r>=46)?1.6:1;
+    const deep=chassis===2?0.72:(chassis===0?1.18:1);
+    /* crack */
+    const {src,gain}=this.noise(0.22*big,0.9);
+    const lp=this.ctx.createBiquadFilter();
+    lp.type='lowpass'; lp.frequency.setValueAtTime(2400*deep,t);
+    lp.frequency.exponentialRampToValueAtTime(220,t+0.2*big);
+    gain.connect(lp); lp.connect(this.master);
+    this.env(gain,0.5*big,0.004,0.22*big);
+    /* body */
+    const b=this.tone('sine',150*deep,0.3*big,0.9);
+    b.osc.frequency.exponentialRampToValueAtTime(46*deep,t+0.28*big);
+    b.gain.connect(this.master);
+    this.env(b.gain,0.55*big,0.006,0.3*big);
+  },
+  /* impact: lowpass-swept noise crump + sub-bass drop, scaled to blast radius */
+  explode(r,water){
+    if(!this.ready||this.muted) return;
+    const t=this.now();
+    const s=clamp(r/32,0.5,2.4);          /* 26px shell ≈ 0.8, 70px BIGBOY ≈ 2.2 */
+    const dur=0.34*s;
+    const {gain}=this.noise(dur+0.2,1);
+    const lp=this.ctx.createBiquadFilter();
+    lp.type='lowpass';
+    lp.frequency.setValueAtTime(water?3200:1500,t);
+    lp.frequency.exponentialRampToValueAtTime(water?600:110,t+dur);
+    gain.connect(lp); lp.connect(this.master);
+    this.env(gain,0.6*Math.min(s,1.6),0.005,dur+0.15);
+    if(!water){
+      const sub=this.tone('sine',110/s,dur+0.35,1);
+      sub.osc.frequency.exponentialRampToValueAtTime(26,t+dur+0.3);
+      sub.gain.connect(this.master);
+      this.env(sub.gain,0.7*Math.min(s,1.8),0.01,dur+0.35);
+    }
+  },
+  /* metallic ricochet ping */
+  ricochet(crystal){
+    if(!this.ready||this.muted) return;
+    const t=this.now();
+    const {gain}=this.noise(0.14,1);
+    const bp=this.ctx.createBiquadFilter();
+    bp.type='bandpass'; bp.Q.value=crystal?14:7;
+    bp.frequency.setValueAtTime(crystal?2600:1500,t);
+    bp.frequency.exponentialRampToValueAtTime(crystal?5200:700,t+0.13);
+    gain.connect(bp); bp.connect(this.master);
+    this.env(gain,0.3,0.002,0.14);
+  },
+  splash(){
+    if(!this.ready||this.muted) return;
+    const t=this.now();
+    const {gain}=this.noise(0.4,1);
+    const hp=this.ctx.createBiquadFilter();
+    hp.type='highpass'; hp.frequency.setValueAtTime(400,t);
+    hp.frequency.exponentialRampToValueAtTime(2600,t+0.35);
+    gain.connect(hp); hp.connect(this.master);
+    this.env(gain,0.28,0.008,0.4);
+  },
+  /* terrain tearing loose — long low rumble scaled by mass */
+  collapse(mass){
+    if(!this.ready||this.muted) return;
+    const t=this.now();
+    const s=clamp(mass/900,0.4,2);
+    const dur=0.9*s;
+    const {gain}=this.noise(dur+0.3,1);
+    const lp=this.ctx.createBiquadFilter();
+    lp.type='lowpass'; lp.frequency.setValueAtTime(360,t);
+    lp.frequency.exponentialRampToValueAtTime(70,t+dur);
+    gain.connect(lp); lp.connect(this.master);
+    this.env(gain,0.36*s,0.09,dur+0.25);
+  },
+  /* chunk landing */
+  thud(mass){
+    if(!this.ready||this.muted) return;
+    const t=this.now();
+    const s=clamp(mass/900,0.5,2);
+    const b=this.tone('sine',80/s,0.34,1);
+    b.osc.frequency.exponentialRampToValueAtTime(30,t+0.3);
+    b.gain.connect(this.master);
+    this.env(b.gain,0.5*s,0.008,0.34);
+  },
+  /* damage: brighter when you land one, harsher when you take one */
+  hit(mine){
+    if(!this.ready||this.muted) return;
+    const t=this.now();
+    const o=this.tone(mine?'square':'sawtooth',mine?420:190,0.2,1);
+    o.osc.frequency.exponentialRampToValueAtTime(mine?820:70,t+0.18);
+    const lp=this.ctx.createBiquadFilter();
+    lp.type='lowpass'; lp.frequency.value=mine?2600:900;
+    o.gain.connect(lp); lp.connect(this.master);
+    this.env(o.gain,mine?0.3:0.4,0.004,0.2);
+  },
+  /* rising two-tone chime for charges / powerups */
+  chime(up){
+    if(!this.ready||this.muted) return;
+    const t=this.now();
+    [0,0.09].forEach((d,i)=>{
+      const o=this.ctx.createOscillator();
+      o.type='triangle';
+      o.frequency.value=(up?[560,840]:[840,560])[i];
+      const g=this.ctx.createGain(); g.gain.value=0.0001;
+      o.connect(g); g.connect(this.master);
+      g.gain.setValueAtTime(0.0001,t+d);
+      g.gain.exponentialRampToValueAtTime(0.22,t+d+0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+d+0.26);
+      o.start(t+d); o.stop(t+d+0.3);
+    });
+  },
+  ui(){
+    if(!this.ready||this.muted) return;
+    const o=this.tone('square',680,0.05,1);
+    o.gain.connect(this.master);
+    this.env(o.gain,0.09,0.002,0.05);
+  },
+  roar(){
+    if(!this.ready||this.muted) return;
+    const t=this.now();
+    const {gain}=this.noise(1.1,1);
+    const bp=this.ctx.createBiquadFilter();
+    bp.type='bandpass'; bp.Q.value=2.2;
+    bp.frequency.setValueAtTime(180,t);
+    bp.frequency.exponentialRampToValueAtTime(520,t+0.3);
+    bp.frequency.exponentialRampToValueAtTime(120,t+1.0);
+    gain.connect(bp); bp.connect(this.master);
+    this.env(gain,0.5,0.05,1.1);
+    const sub=this.tone('sawtooth',70,1.1,1);
+    sub.osc.frequency.exponentialRampToValueAtTime(38,t+1.0);
+    const lp=this.ctx.createBiquadFilter();
+    lp.type='lowpass'; lp.frequency.value=300;
+    sub.gain.connect(lp); lp.connect(this.master);
+    this.env(sub.gain,0.32,0.06,1.1);
+  },
+  /* --- sustained voices --- */
+  /* The shell whistle is the only cue that carries information:
+     pitch tracks vertical velocity, so the apex is audible and a
+     falling shell rises in pitch as it comes down. */
+  whistleOn(){
+    if(!this.ready||this.muted||this.whistle) return;
+    const o=this.ctx.createOscillator();
+    o.type='sine'; o.frequency.value=520;
+    const g=this.ctx.createGain(); g.gain.value=0.0001;
+    const bp=this.ctx.createBiquadFilter();
+    bp.type='bandpass'; bp.Q.value=1.4; bp.frequency.value=900;
+    o.connect(g); g.connect(bp); bp.connect(this.master);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.1,this.now()+0.08);
+    this.whistle={osc:o,gain:g};
+  },
+  whistleTrack(vy,nearGround){
+    if(!this.whistle) return;
+    const f=clamp(300+vy*0.85,180,1500);
+    const t=this.now();
+    this.whistle.osc.frequency.setTargetAtTime(f,t,0.05);
+    this.whistle.gain.gain.setTargetAtTime(0.06+nearGround*0.09,t,0.08);
+  },
+  whistleOff(){
+    if(!this.whistle) return;
+    const w=this.whistle; this.whistle=null;
+    const t=this.now();
+    try{
+      w.gain.gain.cancelScheduledValues(t);
+      w.gain.gain.setValueAtTime(Math.max(0.0002,w.gain.gain.value),t);
+      w.gain.gain.exponentialRampToValueAtTime(0.0001,t+0.1);
+      w.osc.stop(t+0.15);
+    }catch(e){}
+  },
+  loop(key,build){
+    if(!this.ready||this.muted||this[key]) return;
+    this[key]=build.call(this);
+  },
+  stopLoop(key){
+    const v=this[key]; if(!v) return;
+    this[key]=null;
+    const t=this.now();
+    try{
+      v.gain.gain.cancelScheduledValues(t);
+      v.gain.gain.setValueAtTime(Math.max(0.0002,v.gain.gain.value),t);
+      v.gain.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
+      v.src.stop(t+0.3);
+    }catch(e){}
+  },
+  treadOn(){
+    this.loop('tread',function(){
+      const s=this.ctx.createBufferSource();
+      s.buffer=this.noiseBuf; s.loop=true;
+      const lp=this.ctx.createBiquadFilter();
+      lp.type='lowpass'; lp.frequency.value=200;
+      const g=this.ctx.createGain(); g.gain.value=0.0001;
+      s.connect(lp); lp.connect(g); g.connect(this.master);
+      s.start();
+      g.gain.exponentialRampToValueAtTime(0.14,this.now()+0.1);
+      return {src:s,gain:g};
+    });
+  },
+  treadOff(){ this.stopLoop('tread'); },
+  drillOn(){
+    this.loop('drill',function(){
+      const s=this.ctx.createBufferSource();
+      s.buffer=this.noiseBuf; s.loop=true;
+      const bp=this.ctx.createBiquadFilter();
+      bp.type='bandpass'; bp.Q.value=3.5; bp.frequency.value=420;
+      const g=this.ctx.createGain(); g.gain.value=0.0001;
+      s.connect(bp); bp.connect(g); g.connect(this.master);
+      s.start();
+      g.gain.exponentialRampToValueAtTime(0.2,this.now()+0.05);
+      return {src:s,gain:g};
+    });
+  },
+  drillOff(){ this.stopLoop('drill'); },
+  rainOn(){
+    this.loop('rain',function(){
+      const s=this.ctx.createBufferSource();
+      s.buffer=this.noiseBuf; s.loop=true;
+      const hp=this.ctx.createBiquadFilter();
+      hp.type='highpass'; hp.frequency.value=1100;
+      const g=this.ctx.createGain(); g.gain.value=0.0001;
+      s.connect(hp); hp.connect(g); g.connect(this.master);
+      s.start();
+      g.gain.exponentialRampToValueAtTime(0.11,this.now()+1.2);
+      return {src:s,gain:g};
+    });
+  },
+  rainOff(){ this.stopLoop('rain'); },
+  allOff(){ this.whistleOff(); this.treadOff(); this.drillOff(); this.rainOff(); }
+};
+
 const MEM={};
 const store={
   get(k){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):(MEM[k]||null); }
@@ -1215,6 +1532,7 @@ class Game{
     this.chunks=[];
     this.lions=[];
     this.pickFor=null; this.pickTpTank=null;
+    this.shotRec=null; this.replaying=false; this.pendingState=null; this.replayDeadline=0;
     $('powerpick').classList.add('hidden');
     $('pubadge').classList.add('hidden');
     this.shots={}; this.shotSeq=0;
@@ -1262,6 +1580,7 @@ class Game{
     this.hurricane=on;
     this.windMax=this.map.wind*(on?3:1);
     document.getElementById('windrow').classList.toggle('storm',on);
+    if(on) SFX.rainOn(); else SFX.rainOff();
     if(on){
       toast('HURRICANE — THE SKY TURNS ON EVERYONE');
       this.shake=Math.max(this.shake,7);
@@ -1291,6 +1610,7 @@ class Game{
     c.stroke();
   }
   grantCharge(t,msg){
+    SFX.chime(true);
     t.charges=Math.min(3,t.charges+1);
     if(!t.supportUnlocked) t.supportUnlocked=true;
     if(msg) toast(msg);
@@ -1516,6 +1836,7 @@ class Game{
       dropT: 0.1, age:0, roared:false
     });
     if(!this.rt) this.phase='flight';
+    SFX.roar();
     toast('LION UPLINK · STRIKE RUN INBOUND');
     this.shake=Math.max(this.shake,2);
     this.updateHUD();
@@ -1539,7 +1860,7 @@ class Game{
       if(inZone && L.dropT<=0){
         L.dropT=0.16; /* dense carpet inside the window */
         const inward=clamp((L.tx-L.x)*0.35,-70,70);
-        this.spawnProj(L.x, L.y+10, inward+L.dir*rand(5,25), rand(20,60),
+        this.spawnProj(L.x, L.y+10, inward+L.dir*srnd(5,25), srnd(20,60),
           LIONLET, L.owner, 'bomblet', L.shotId);
       }
       /* terminal burst at the far edge of the strike window */
@@ -1550,7 +1871,7 @@ class Game{
           const a=(i/6)*TAU;
           const inward=clamp((L.tx-L.x)*0.4,-90,90);
           this.spawnProj(L.x, L.y,
-            Math.cos(a)*rand(80,160)+inward, Math.abs(Math.sin(a))*rand(60,160)+30,
+            Math.cos(a)*srnd(80,160)+inward, Math.abs(Math.sin(a))*srnd(60,160)+30,
             LIONLET, L.owner, 'bomblet', L.shotId);
         }
         this.releaseProj({shotId:L.shotId});
@@ -1634,6 +1955,14 @@ class Game{
       }
     }
   }
+  /* Capture everything needed to re-fire this exact shot on the other device.
+     Called before fire()/callAirstrike() so the seeded RNG is armed for both. */
+  beginShotRecord(d){
+    if(!this.online||this.replaying) return;
+    const seed=(Math.random()*1e9)|0;
+    shotRandReset(seed);
+    this.shotRec=Object.assign({by:this.turn,seed},d);
+  }
   fire(tank,ammoIdx){
     let am=AMMO[ammoIdx];
     if(ammoIdx>0 && tank.ammo[ammoIdx]!==Infinity && tank.ammo[ammoIdx]>0) tank.ammo[ammoIdx]--;
@@ -1650,13 +1979,14 @@ class Game{
     for(const pw of powers){
       let sa=a, sv=v*pw;
       if(am.bigboy){
-        sa=a+rand(-am.jitterA,am.jitterA)*Math.PI/180;
-        sv=Math.max(90, sv+rand(-am.jitterP,am.jitterP)*8.2);
+        sa=a+srnd(-am.jitterA,am.jitterA)*Math.PI/180;
+        sv=Math.max(90, sv+srnd(-am.jitterP,am.jitterP)*8.2);
       }
       this.spawnProj(m.x,m.y,Math.cos(sa)*sv,-Math.sin(sa)*sv,am,tank,'main',id);
     }
     if(am.bigboy) this.shake=Math.max(this.shake,5);
     tank.recoil=1;
+    SFX.fire(tank.chassis,am);
     this.particles.burst(m.x,m.y,'#ffffff',10,220,0.3,2.5);
     if(!this.rt) this.phase='flight';
     this.shake=Math.max(this.shake,3);
@@ -1664,12 +1994,13 @@ class Game{
   }
   callAirstrike(x){
     const t=this.humanTank();
+    this.beginShotRecord({kind:'strike', x:+x.toFixed(1), tx:+t.x.toFixed(1)});
     t.charges--;
     this.strikeMark=null;
     const id=this.newShot(t);
     for(let i=0;i<3;i++){
-      const sx=x+(i-1)*34+rand(-8,8);
-      this.spawnProj(sx, -30-i*46, rand(-12,12), rand(180,230), STRIKE, t, 'strike', id);
+      const sx=x+(i-1)*34+srnd(-8,8);
+      this.spawnProj(sx, -30-i*46, srnd(-12,12), srnd(180,230), STRIKE, t, 'strike', id);
     }
     this.phase=this.rt?'rt':'flight';
     toast('AIRSTRIKE INBOUND');
@@ -1697,6 +2028,7 @@ class Game{
           Math.min(20,4+d.count/8), 160, 1, 2.6);
         continue;
       }
+      SFX.collapse(d.count);
       this.chunks.push(new Chunk(d));
     }
   }
@@ -1760,6 +2092,7 @@ class Game{
         this.particles.burst(ch.x+cx, ch.y0+oy+ch.bot[cx],'#5a78c8',2,120,0.8,2.4);
     }
     this.shake=Math.max(this.shake, clamp(2+ch.count/220,2,9));
+    SFX.thud(ch.count);
     ch.dead=true;
   }
   explode(x,y,ammo,directHit,owner,shotId,directStruct){
@@ -1769,6 +2102,7 @@ class Game{
     this.particles.burst(x,y,this.map.rim,22,180,1.5,2.2);
     this.rings.push({x,y,r:4,max:ammo.r*2.1,c:ammo.color,a:1});
     this.shake=Math.max(this.shake,ammo.r*0.42);
+    SFX.explode(ammo.r,false);
     this.lastImpact={x,y};
     this.impactFocus={x,y,t:1.5,owner};
     if(owner&&owner.human) owner.lastMark={x,y};
@@ -1785,6 +2119,7 @@ class Game{
       else if(d<ammo.r+16) dealt=Math.round(ammo.dmg*(1-d/(ammo.r+16))*0.85);
       if(dealt>0){
         const actual=t.damage(dealt);
+        if(actual>0) SFX.hit(t!==this.humanTank());
         if(owner && t!==owner){
           if(rec) rec.damaged=true;
           owner.shotDealtDamage=true;
@@ -1802,7 +2137,53 @@ class Game{
     if(this.rt && (this.t1.dead||this.t2.dead)) this.finish();
     this.updateHUD();
   }
+  /* ---- opponent shot replay ---- */
+  startReplay(st){
+    const sh=st.shot;
+    const shooter = sh.by===1?this.t1:this.t2;
+    if(!shooter || shooter.dead){ this.replaying=false; applyState(this,st); return; }
+    this.pendingState=st;
+    this.replaying=true;
+    this.replayDeadline=perf+9000;      /* backstop: never strand the turn */
+    this.netWaiting=true;
+    this.phase='flight';
+    shotRandReset(sh.seed);
+    /* place the shooter where they actually fired from — this is how you see
+       that they drove, which is the whole point of watching the shot */
+    if(sh.tx!=null||sh.x!=null){
+      const fx = sh.kind==='strike' ? sh.tx : sh.x;
+      if(fx!=null){ shooter.x=fx; shooter.y=this.terr.surfaceY(fx)-1; }
+    }
+    if(sh.tri!=null) shooter.tripleTurret=!!sh.tri;
+    document.getElementById('incoming').classList.add('show');
+    if(sh.kind==='strike'){
+      this.callAirstrikeFrom(shooter, sh.x);
+    } else {
+      shooter.angle=sh.angle; shooter.power=sh.power;
+      if(sh.lionTarget!=null) shooter.lionTarget=sh.lionTarget;
+      this.fire(shooter, sh.ammo);
+    }
+    this.updateHUD();
+  }
+  /* airstrike spawner that does not assume the local player owns it */
+  callAirstrikeFrom(t,x){
+    const id=this.newShot(t);
+    for(let i=0;i<3;i++){
+      const sx=x+(i-1)*34+srnd(-8,8);
+      this.spawnProj(sx, -30-i*46, srnd(-12,12), srnd(180,230), STRIKE, t, 'strike', id);
+    }
+    this.phase='flight';
+    toast('AIRSTRIKE INBOUND');
+  }
+  finishReplay(){
+    const st=this.pendingState;
+    this.replaying=false; this.pendingState=null;
+    shotRandOff();
+    document.getElementById('incoming').classList.remove('show');
+    if(st) applyState(this,st,true);
+  }
   endTurn(){
+    if(this.replaying) return;   /* the snapshot ends the turn, not local physics */
     if(this.rt) return;
     if(this.online){
       const iActed = (this.turn===NET.myTank);
@@ -1814,6 +2195,7 @@ class Game{
         this.rollWind();
         this.turn = this.turn===1?2:1;
         NET.pushTurn(serializeState(this,NET.myTank));
+        this.shotRec=null; shotRandOff();
         this.netWaiting=true;
         this.phase='aim';
         this.updateHUD();
@@ -1893,6 +2275,7 @@ class Game{
     const am=p.ammo;
     /* drilling: straight-line tunnel through dirt */
     if(p.drilling){
+      SFX.drillOn();
       const sp=Math.hypot(p.vx,p.vy)||1;
       const dx=p.vx/sp, dy=p.vy/sp;
       const adv=300*dt;
@@ -1947,6 +2330,7 @@ class Game{
     /* water fizzle: any empty pixel below the waterline is water */
     if(this.waterLevel!=null && p.y>=this.waterLevel && !this.terr.solid(p.x,p.y)){
       this.particles.burst(p.x,this.waterLevel,'#3ec6ff',14,120,0.8,2.2);
+      SFX.splash();
       this.rings.push({x:p.x,y:this.waterLevel,r:3,max:26,c:'#3ec6ff',a:0.8});
       this.impactFocus={x:p.x,y:this.waterLevel,t:1.5,owner:p.owner};
       if(p.owner&&p.owner.human) p.owner.lastMark={x:p.x,y:this.waterLevel};
@@ -1961,6 +2345,7 @@ class Game{
         p.vx=(p.vx-2*dot*nx)*0.8; p.vy=(p.vy-2*dot*ny)*0.8;
         p.x+=nx*2; p.y+=ny*2;
         this.particles.spark(p.x,p.y,'#66ffe3');
+        SFX.ricochet(true);
         this.shake=Math.max(this.shake,1.5);
         if(Math.hypot(p.vx,p.vy)<60){
           this.explode(p.x,p.y,am,null,p.owner,p.shotId); this.onDetonate(p); return false;
@@ -1974,6 +2359,7 @@ class Game{
         p.vx=(p.vx-2*dot*nx)*0.58; p.vy=(p.vy-2*dot*ny)*0.58;
         p.x+=nx*2; p.y+=ny*2;
         this.particles.spark(p.x,p.y,am.color);
+        SFX.ricochet(false);
         this.shake=Math.max(this.shake,2);
         if(Math.hypot(p.vx,p.vy)<70){
           this.explode(p.x,p.y,am,null,p.owner,p.shotId); this.onDetonate(p); return false;
@@ -1990,8 +2376,8 @@ class Game{
   onDetonate(p){
     if(p.ammo.cluster && p.kind==='main'){
       for(let i=0;i<p.ammo.cluster;i++){
-        this.spawnProj(p.x+rand(-4,4), p.y-6,
-          rand(-150,150)+p.vx*0.15, rand(-320,-170),
+        this.spawnProj(p.x+srnd(-4,4), p.y-6,
+          srnd(-150,150)+p.vx*0.15, srnd(-320,-170),
           BOMBLET, p.owner, 'bomblet', p.shotId);
       }
     }
@@ -2127,6 +2513,22 @@ class Game{
         }
       }
     }
+    /* --- sustained audio voices track live state --- */
+    if(this.phase!=='over'){
+      const drilling=this.projs.some(p=>p.drilling);
+      if(!drilling) SFX.drillOff();
+      const lead=this.projs.find(p=>p.kind==='main')||this.projs[0];
+      if(lead){
+        SFX.whistleOn();
+        const gy=this.terr.surfaceY(clamp(Math.round(lead.x),0,this.tw-1));
+        const near=clamp(1-(gy-lead.y)/260,0,1);
+        SFX.whistleTrack(lead.vy,near);
+      } else SFX.whistleOff();
+      const moving = moveDir!==0 && (this.rt ? !this.t1.dead
+        : (this.humanActive()&&this.phase==='aim'));
+      const aiMoving = this.phase==='ai_move' && this.aiMoveTo!=null;
+      if(moving||aiMoving) SFX.treadOn(); else SFX.treadOff();
+    } else { SFX.allOff(); }
     if(this.projs.length){
       const steps=3, sdt=dt/steps;
       for(let s=0;s<steps;s++){
@@ -2139,7 +2541,10 @@ class Game{
       }
       if(!this.projs.length && !this.lions.length && this.phase==='flight') this.endTurn();
     }
-    if(!this.projs.length && !this.lions.length && this.phase==='flight') this.endTurn();
+    if(this.replaying){
+      const settled=!this.projs.length && !this.lions.length && !this.chunks.length;
+      if(settled || perf>this.replayDeadline) this.finishReplay();
+    } else if(!this.projs.length && !this.lions.length && this.phase==='flight') this.endTurn();
     for(const t of this.trail) t.t+=dt;
     this.trail=this.trail.filter(t=>t.t<1.4);
     if(this.impactFocus){
@@ -2505,12 +2910,15 @@ document.querySelectorAll('.ammobtn').forEach(b=>{
     if(t.ammo[i]>0){ t.ammoSel=i; game.updateHUD(); }
   });
 });
-ui.fire.addEventListener('click',playerFire);
+ui.fire.addEventListener('click',()=>{ SFX.ui(); playerFire(); });
 function playerFire(){
   if(!game||!game.canPlayerFire()) return;
   const t=game.humanTank(), i=t.ammoSel;
   if(t.ammo[i]<=0) return;
   if(t.reconShots>0) t.reconShots--;
+  game.beginShotRecord({kind:'shot', angle:+t.angle.toFixed(2), power:+t.power.toFixed(2),
+    ammo:i, x:+t.x.toFixed(1), tri:!!t.tripleTurret,
+    lionTarget:t.lionTarget!=null?+t.lionTarget.toFixed(1):null});
   game.fire(t,i);
   if(game.rt) game.fireCd=FIRE_CD;
   if(t.ammo[t.ammoSel]<=0) t.ammoSel=0;
@@ -2561,6 +2969,23 @@ window.addEventListener('touchmove',e=>{
   if(game&&(game.phase==='target'||game.phase==='tptarget')&&e.touches[0])
     game.strikeMark=s2wX(e.touches[0].clientX);
 },{passive:true});
+
+/* ---------- audio unlock + mute ---------- */
+SFX.muted = store.get('vs_muted')===true;
+function unlockAudio(){
+  SFX.init(); SFX.resume();
+  window.removeEventListener('pointerdown',unlockAudio);
+  window.removeEventListener('keydown',unlockAudio);
+}
+window.addEventListener('pointerdown',unlockAudio);
+window.addEventListener('keydown',unlockAudio);
+$('mutebtn').textContent = SFX.muted?'♪̶':'♪';
+$('mutebtn').addEventListener('click',e=>{
+  e.stopPropagation();
+  SFX.init();
+  SFX.setMuted(!SFX.muted);
+  if(SFX.muted) SFX.allOff();
+});
 
 /* ---------- EASTER EGG: hurricane (tap the wind readout x5) ---------- */
 let windTaps=0, windLast=0;
@@ -2905,6 +3330,7 @@ function serializeState(g,by){
         supportUnlocked:g.t2.supportUnlocked, tri:!!g.t2.tripleTurret},
     wind:+g.wind.toFixed(2),
     hurricane:!!g.hurricane,
+    shot:g.shotRec||null,
     nextTurn:g.turn,
     terr:packTerrain(g.terr),
     structs:g.structures.map(s=>({hp:s.hp,y:+s.y.toFixed(1)}))
@@ -2937,7 +3363,13 @@ function applyTerrain(T,pk){
   T.paint(0,0,T.w,T.hh);
   return true;
 }
-function applyState(g,st){
+function applyState(g,st,skipReplay){
+  /* If the opponent's turn included a shot, watch it land before accepting
+     their numbers. The snapshot is still authoritative — it is applied the
+     moment the replay resolves, silently correcting any drift.
+     skipReplay is set by finishReplay so the same snapshot cannot re-trigger
+     its own replay (that recursion is an infinite loop). */
+  if(!skipReplay && st.shot && g.online && !g.replaying){ g.startReplay(st); return; }
   const load=(tk,d)=>{
     tk.x=d.x; tk.y=d.y; tk.hp=d.hp; tk.dead=d.dead;
     tk.ammo=d.ammo.map(a=>a===-1?Infinity:a);
@@ -2981,6 +3413,8 @@ menuBtn.addEventListener('click',()=>{
   $('shop').classList.add('hidden');
   $('powerpick').classList.add('hidden');
   $('loadout').classList.add('hidden');
+  $('incoming').classList.remove('show');
+  SFX.allOff();
   if(NET.on||NET.room){ NET.leave(); }
   $('netbadge').classList.remove('show');
   $('peerwarn').classList.remove('show');
