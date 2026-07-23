@@ -155,6 +155,16 @@
   #title .modes{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
   #title .modes small{display:block;font-size:9px;letter-spacing:1px;opacity:.6;margin-top:4px}
   #buildtag{margin-top:22px;font-size:8px;letter-spacing:3px;color:var(--violet);opacity:.45}
+  /* first-run coach hints — one at a time, tap to dismiss, never shown twice */
+  #hintband{position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:40;
+    max-width:min(92vw,460px);background:rgba(10,6,30,.94);border:1px solid rgba(143,107,255,.65);
+    color:#dcd2ff;font-size:10.5px;letter-spacing:1.5px;line-height:1.6;padding:9px 30px 9px 13px;
+    text-align:center;cursor:pointer;border-radius:3px;
+    box-shadow:0 0 18px rgba(143,107,255,.35);opacity:0;pointer-events:none;
+    transition:opacity .3s ease}
+  #hintband.show{opacity:1;pointer-events:auto}
+  #hintband::after{content:'✕';position:absolute;right:9px;top:8px;opacity:.55;font-size:10px}
+  #hintband b{color:#fff;font-weight:normal}
   #onlinePanel{margin-top:16px;display:flex;flex-direction:column;gap:10px;align-items:center;
     width:min(92vw,420px)}
   #onlinePanel .orow{display:flex;gap:8px;width:100%;justify-content:center;flex-wrap:wrap}
@@ -192,10 +202,11 @@
   .win{color:var(--cyan)} .lose{color:var(--red)}
 
   /* loadout */
-  #loadout h1{color:var(--cyan);font-size:clamp(18px,4.5vw,30px);letter-spacing:6px}
-  #loSub{font-size:9px;letter-spacing:2px;color:var(--violet);margin:4px 0 12px;opacity:.8}
-  #loChassis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:min(94vw,560px);margin-bottom:10px}
-  #loColorWrap{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  #loadout{justify-content:flex-start;padding-top:min(4vh,26px)}   /* keep the title pinned so it never scrolls off the top */
+  #loadout h1{color:var(--cyan);font-size:clamp(18px,4.2vw,28px);letter-spacing:6px;margin-bottom:2px}
+  #loSub{font-size:9px;letter-spacing:2px;color:var(--violet);margin:3px 0 10px;opacity:.8}
+  #loChassis{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;width:min(96vw,600px);margin-bottom:9px}
+  #loColorWrap{display:flex;align-items:center;gap:10px;margin-bottom:10px}
   #loColorWrap span{font-size:9px;letter-spacing:2px;opacity:.65}
   #loColors{display:flex;gap:7px}
   .swatch{width:26px;height:26px;border:1px solid rgba(255,255,255,.22);cursor:pointer;
@@ -204,31 +215,51 @@
   .swatch.sel{border-color:#fff;box-shadow:0 0 12px currentColor}
   .swatch.sel::after{content:'';position:absolute;inset:-4px;border:1px solid currentColor;opacity:.5}
   .chcard{background:var(--panel);border:1px solid rgba(0,240,255,.3);color:var(--cyan);
-    font-family:inherit;font-size:11px;letter-spacing:2px;padding:8px 6px;cursor:pointer;text-align:center}
-  .chcard small{display:block;font-size:8.5px;letter-spacing:.5px;opacity:.6;margin-top:4px;line-height:1.5}
-  .chcard .stat{display:block;font-size:8px;letter-spacing:.5px;color:#fff;opacity:.75;margin-top:3px}
+    font-family:inherit;font-size:12.5px;letter-spacing:2px;padding:9px 6px 8px;cursor:pointer;text-align:center;border-radius:3px}
+  .chcard small{display:block;font-size:8.5px;letter-spacing:.4px;opacity:.62;margin-top:5px;line-height:1.45}
+  .chcard .stat{display:block;font-size:9px;letter-spacing:.4px;color:#fff;opacity:.85;margin-top:5px;line-height:1.5}
   .chcard.sel{border-color:var(--cyan);color:#fff;box-shadow:0 0 12px rgba(0,240,255,.5),inset 0 0 12px rgba(0,240,255,.1)}
-  #loAmmo{width:min(94vw,560px);margin-bottom:10px}
-  .lorow{display:flex;align-items:center;gap:8px;background:var(--panel);
-    border:1px solid rgba(0,240,255,.18);padding:5px 8px;margin-bottom:4px}
-  .lorow .nm{flex:1;text-align:left;font-size:10px;letter-spacing:1px}
-  .lorow .nm small{display:block;font-size:8.5px;opacity:.55;letter-spacing:.5px}
-  .lorow .cost{font-size:9px;color:var(--amber);letter-spacing:1px;white-space:nowrap}
-  .lorow .qty{font-size:12px;color:#fff;min-width:18px;text-align:center}
+  /* ammo: grouped into munition categories, three across — the whole arsenal reads at a glance */
+  #loAmmo{width:min(96vw,600px);margin-bottom:9px}
+  .locat{margin-bottom:8px}
+  .locathead{display:flex;align-items:center;gap:7px;font-size:9px;letter-spacing:3px;
+    color:var(--cat);opacity:.9;text-align:left;margin:6px 2px 5px}
+  .locathead::before{content:'';width:11px;height:2px;background:var(--cat);box-shadow:0 0 6px var(--cat)}
+  .locatgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  .lorow{display:grid;grid-template-columns:1fr auto;grid-template-areas:"nm step" "meta meta";
+    align-items:center;gap:3px 6px;background:var(--panel);
+    border:1px solid rgba(0,240,255,.14);border-left:3px solid var(--cat);
+    padding:6px 9px;border-radius:3px}
+  .lorow .nm{grid-area:nm;text-align:left;font-size:11.5px;letter-spacing:1px;color:var(--cat)}
+  .lorow .meta{grid-area:meta;text-align:left;font-size:8.5px;letter-spacing:.2px;opacity:.6;line-height:1.35}
+  .lorow .meta b{color:var(--amber);opacity:.95;font-weight:normal}
+  .lorow .step{grid-area:step;display:flex;align-items:center;gap:6px}
+  .lorow .qty{font-size:13px;color:#fff;min-width:14px;text-align:center}
+  .lorow.free{opacity:.9;border-left-style:dashed}
+  .lorow .freetag{grid-area:step;font-size:11px;letter-spacing:1px;color:var(--cat);opacity:.85}
+  /* specialist rounds locked to another hull: visible (so the kit is discoverable) but inert */
+  .lorow.lock{opacity:.32}
+  .lorow.lock .nm,.lorow.lock .meta{color:rgba(255,255,255,.75)}
+  .lorow .req{grid-area:step;font-size:8.5px;letter-spacing:1px;color:#fff;opacity:.8;white-space:nowrap}
   .lobtn{background:transparent;border:1px solid rgba(0,240,255,.4);color:var(--cyan);
-    font-family:inherit;font-size:13px;line-height:1;padding:2px 8px;cursor:pointer}
+    font-family:inherit;font-size:15px;line-height:1;padding:2px 9px;cursor:pointer;border-radius:2px}
   .lobtn:disabled{opacity:.2;cursor:default}
-  #loBudget{font-size:12px;letter-spacing:3px;color:var(--amber);margin-bottom:14px;
+  #loBudget{font-size:12px;letter-spacing:3px;color:var(--amber);margin-bottom:12px;
     text-shadow:0 0 8px var(--amber)}
   #loBudget.over{color:var(--red);text-shadow:0 0 8px var(--red)}
   #loOwned{font-size:10px;letter-spacing:1px;color:var(--green);line-height:1.9;
-    margin-bottom:14px;max-width:min(94vw,560px)}
+    margin-bottom:14px;max-width:min(96vw,600px)}
   #loActions{display:flex;gap:10px}
-  @media (max-height:520px){
-    #loadout h1{font-size:16px;margin-bottom:0}
+  @media (max-width:440px){ .locatgrid{grid-template-columns:repeat(2,minmax(0,1fr))} }  /* phones: two across stays legible */
+  @media (max-height:560px){
+    #loadout h1{font-size:15px;margin-bottom:0}
     #loSub{margin:2px 0 6px}
     .chcard small{display:none}
-    .lorow{padding:3px 6px;margin-bottom:3px}
+    .lorow .meta{display:none}                                     /* keep name + stepper; drop the blurb when vertical room is scarce */
+    .lorow{padding:5px 9px}
+    .locat{margin-bottom:5px}
+    .locathead{margin:4px 2px 4px}
+    #loChassis,#loAmmo,#loColorWrap{margin-bottom:6px}
     #loBudget{margin-bottom:8px}
   }
   #startDaily{border-color:rgba(255,179,0,.6);color:var(--amber);text-shadow:0 0 8px var(--amber)}
@@ -252,15 +283,19 @@
   #shop h1{color:var(--green);font-size:clamp(20px,5vw,34px)}
   #shopscrap{font-size:13px;color:var(--green);letter-spacing:3px;margin:8px 0 16px;
     text-shadow:0 0 8px var(--green)}
-  #shopgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
-    gap:8px;width:min(92vw,640px);margin-bottom:20px}
-  .shopitem{background:var(--panel);border:1px solid rgba(0,255,168,.4);color:var(--green);
-    font-family:inherit;font-size:11px;letter-spacing:1px;padding:9px 10px;cursor:pointer;
+  #shopgrid{display:flex;flex-direction:column;gap:2px;width:min(92vw,640px);margin-bottom:20px}
+  .shopcat{margin-bottom:5px}
+  .shopcathead{display:flex;align-items:center;gap:7px;font-size:9px;letter-spacing:3px;
+    color:var(--cat);opacity:.9;text-align:left;margin:6px 2px 5px}
+  .shopcathead::before{content:'';width:11px;height:2px;background:var(--cat);box-shadow:0 0 6px var(--cat)}
+  .shopcatgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:7px}
+  .shopitem{background:var(--panel);border:1px solid rgba(0,255,168,.28);border-left:3px solid var(--cat);
+    color:var(--green);font-family:inherit;font-size:11px;letter-spacing:1px;padding:9px 10px;cursor:pointer;
     text-align:left;line-height:1.5}
   .shopitem small{opacity:.65;display:block;font-size:9.5px;letter-spacing:.5px}
   .shopitem .price{float:right;color:#fff;text-shadow:0 0 6px var(--green)}
   .shopitem:disabled{opacity:.3;cursor:default}
-  .shopitem.owned{border-color:rgba(255,255,255,.35);color:rgba(255,255,255,.6);cursor:default}
+  .shopitem.owned{border-color:rgba(255,255,255,.35);border-left-color:var(--cat);color:rgba(255,255,255,.6);cursor:default}
   @media (max-width:600px){
     .readout{min-width:80px;font-size:9.5px;padding:4px 6px}
     .ammobtn small,.supbtn small{display:none}
@@ -302,6 +337,7 @@
 <div id="netbadge"></div>
 <div id="peerwarn">OPPONENT DISCONNECTED</div>
 <div id="incoming">◂ INCOMING ▸</div>
+<div id="hintband"></div>
 <div id="waitmask"><div>OPPONENT'S TURN…</div></div>
 
 <div id="hud">
@@ -348,14 +384,17 @@
     <div id="ammo">
       <button class="ammobtn sel" data-a="0">SHELL<span class="q">∞</span></button>
       <button class="ammobtn" data-a="1">HEAVY<span class="q cnt" data-c="1">0</span></button>
+      <button class="ammobtn" data-a="6">BIGBOY<span class="q cnt" data-c="6">0</span></button>
       <button class="ammobtn" data-a="2">BOUNCE<span class="q cnt" data-c="2">0</span></button>
-      <button class="ammobtn" data-a="3">CLUSTER<span class="q cnt" data-c="3">0</span></button>
       <button class="ammobtn" data-a="4">SEEKER<span class="q cnt" data-c="4">0</span></button>
       <button class="ammobtn" data-a="7">RAILGUN<span class="q cnt" data-c="7">0</span></button>
+      <button class="ammobtn" data-a="3">CLUSTER<span class="q cnt" data-c="3">0</span></button>
+      <button class="ammobtn" data-a="5">LION<span class="q cnt" data-c="5">0</span></button>
       <button class="ammobtn" data-a="8">NAPALM<span class="q cnt" data-c="8">0</span></button>
       <button class="ammobtn" data-a="9">WELL<span class="q cnt" data-c="9">0</span></button>
-      <button class="ammobtn" data-a="5">LION<span class="q cnt" data-c="5">0</span></button>
-      <button class="ammobtn" data-a="6">BIGBOY<span class="q cnt" data-c="6">0</span></button>
+      <button class="ammobtn" data-a="10">STING<span class="q cnt" data-c="10">0</span></button>
+      <button class="ammobtn" data-a="11">MORTAR<span class="q cnt" data-c="11">0</span></button>
+      <button class="ammobtn" data-a="12">BREACH<span class="q cnt" data-c="12">0</span></button>
     </div>
     <button id="fire">FIRE</button>
   </div>
@@ -380,7 +419,7 @@
   </div>
   <button id="newCampBtn" class="hidden" style="margin-top:14px;font-size:10px;padding:8px 16px;
     border-color:rgba(255,51,102,.5);color:var(--red)">START NEW CAMPAIGN (DISCARD PROGRESS)</button>
-  <div id="buildtag">BUILD 1.7.1 · AUDIT</div>
+  <div id="buildtag">BUILD 2.1.1 · FIELD MANUAL</div>
   <div id="onlinePanel" class="hidden">
     <div class="orow">
       <button id="quickBtn">⚡ QUICK MATCH</button>
@@ -409,6 +448,7 @@
   <div id="loBudget">BUDGET ◇ 0 / 12</div>
   <div id="loActions">
     <button id="loBack" style="font-size:10px;padding:8px 14px;border-color:rgba(143,107,255,.4);color:var(--violet)">← BACK</button>
+    <button id="loClear" style="font-size:10px;padding:8px 14px;border-color:rgba(255,51,102,.4);color:var(--red);text-shadow:0 0 8px var(--red)">✕ CLEAR</button>
     <button id="loDeploy">DEPLOY →</button>
   </div>
 </div>
@@ -609,11 +649,11 @@ const MAPS=[
 
 /* ---------- AI archetypes (local fallback commander) ---------- */
 const ARCH=[
- {name:'GUNNER', ammo:[[0,1]],           err:13, learn:0.9,  moveProb:0.15, moveRange:60,  aggro:false},
- {name:'WARDEN', ammo:[[0,0.5],[8,0.5]], err:10, learn:0.8,  moveProb:0.25, moveRange:80,  aggro:false},
- {name:'SNIPER', ammo:[[7,0.7],[0,0.3]], err:5,  learn:0.35, moveProb:0,    moveRange:0,   aggro:false},
- {name:'BRAWLER',ammo:[[1,0.7],[0,0.3]], err:9,  learn:0.8,  moveProb:0.6,  moveRange:110, aggro:true},
- {name:'WRAITH', ammo:[[2,0.4],[3,0.3],[4,0.3]], err:8, learn:1.1, moveProb:0.9, moveRange:130, aggro:false},
+ {name:'GUNNER', ammo:[[0,0.85],[11,0.15]],           err:13, learn:0.9,  moveProb:0.15, moveRange:60,  aggro:false},
+ {name:'WARDEN', ammo:[[0,0.45],[8,0.45],[11,0.1]],   err:10, learn:0.8,  moveProb:0.25, moveRange:80,  aggro:false},
+ {name:'SNIPER', ammo:[[7,0.6],[10,0.15],[0,0.25]],   err:5,  learn:0.35, moveProb:0,    moveRange:0,   aggro:false},
+ {name:'BRAWLER',ammo:[[1,0.6],[12,0.12],[0,0.28]],   err:9,  learn:0.8,  moveProb:0.6,  moveRange:110, aggro:true},
+ {name:'WRAITH', ammo:[[2,0.35],[3,0.25],[4,0.25],[10,0.15]], err:8, learn:1.1, moveProb:0.9, moveRange:130, aggro:false},
 ];
 function pickWeighted(pairs){
   const tot=pairs.reduce((s,p)=>s+p[1],0)||1;
@@ -623,7 +663,7 @@ function pickWeighted(pairs){
 }
 
 /* ---------- ammo ---------- */
-const AMMO_NAMES=['SHELL','HEAVY','BOUNCER','CLUSTER','SEEKER','LION','BIGBOY','RAILGUN','NAPALM','WELL'];
+const AMMO_NAMES=['SHELL','HEAVY','BOUNCER','CLUSTER','SEEKER','LION','BIGBOY','RAILGUN','NAPALM','WELL','STING','MORTAR','BREACHER'];
 const AMMO=[
  {name:'SHELL',  r:26, dmg:34, gscale:1,   wscale:1,   bounces:0, speed:1,    color:'#ffffff'},
  {name:'HEAVY',  r:46, dmg:52, gscale:1.10,wscale:0.45,bounces:0, speed:0.97, color:'#ffb300'},
@@ -635,10 +675,109 @@ const AMMO=[
  {name:'RAILGUN',r:20, dmg:42, gscale:0.90,wscale:0.15,bounces:0, speed:1.40, color:'#9dfaff', rail:true},
  {name:'NAPALM', r:26, dmg:18, gscale:1,   wscale:1,   bounces:0, speed:0.96, color:'#ff8a2b', fire:5},
  {name:'WELL',   r:22, dmg:12, gscale:1,   wscale:1,   bounces:0, speed:0.98, color:'#b06bff', well:true},
+ /* chassis-exclusive rounds — each usable only by its hull (see .chassis).
+    All three clear the 816–1008 spawn gap; see arsenal notes before retuning. */
+ {name:'STING',   r:16, dmg:24, gscale:0.95,wscale:0.5, bounces:0, speed:1.12, color:'#4dfadd', seek:3.4, seekAfter:0.22, chassis:0},
+ {name:'MORTAR',  r:40, dmg:46, gscale:1.60,wscale:0.85,bounces:0, speed:1.20, color:'#ffc46b', chassis:1},
+ {name:'BREACHER',r:44, dmg:50, gscale:1.05,wscale:0.6, bounces:0, speed:1.10, color:'#c9d4ff', drill:90, drillR:7, chassis:2},
 ];
+/* ---------- munition categories — one source of truth ----------
+   Grouping and order are shared by the loadout picker, the requisitions shop
+   and the in-game rail, so a round sits in the same family everywhere. */
+const AMMO_CATS=[
+  {name:'STANDARD', accent:'#00f0ff', idx:[0,1,6]},   /* kinetic HE — bigger bore, bigger crater */
+  {name:'PRECISION',accent:'#8f6bff', idx:[2,4,7]},   /* trajectory & guidance */
+  {name:'AREA',     accent:'#ffb300', idx:[3,5]},     /* spread & called strikes */
+  {name:'CONTROL',  accent:'#00ffa8', idx:[8,9]},     /* persistent battlefield hazards */
+  {name:'SPECIALIST',accent:'#cfd8ff',idx:[10,11,12]},/* chassis-exclusive hardware */
+];
+const AMMO_CAT_OF={};                 /* ammo index → its category */
+AMMO_CATS.forEach(c=>c.idx.forEach(i=>{ AMMO_CAT_OF[i]=c; }));
+const AMMO_ORDER=AMMO_CATS.flatMap(c=>c.idx);   /* canonical display order across the game */
+/* one short blurb per round, reused wherever a round is described */
+const AMMO_BLURB={0:'free · always loaded',1:'big crater, resists wind',2:'two ricochets',
+  3:'airburst → 4 bomblets',4:'homes in mid-flight',5:'map-wide strike',6:'huge blast, unguided',
+  7:'flat, fast, needs a line',8:'burning ground, 5 turns',9:'bends every shell after',
+  10:'eager homing dart',11:'plunges over cover',12:'burrows, then detonates'};
 const BOMBLET={name:'BOMBLET',r:16,dmg:15,gscale:1,wscale:1.3,bounces:0,speed:1,color:'#b79bff'};
 const LIONLET={name:'LIONLET',r:16,dmg:15,gscale:1,wscale:0.6,bounces:0,speed:1,color:'#ffd24a'};
 const STRIKE ={name:'STRIKE', r:24,dmg:20,gscale:1,wscale:0.3,bounces:0,speed:1,color:'#ffb300'};
+
+const SPRITE_DATA={
+  scout_hull:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAANCAYAAADbnyzoAAAFVklEQVR4nG2Vu29cxxWHvzMz997dvXt3ueSSXIoUxUAvy7CQLoWBFHHlf0ClCleCWv0DhAABMmAI7iTAZSoLQlK4SBAkKVREDgIEQZDA0SNAbJNcvneXS+7j3p1Hiksl8GOAaQaDc77zm9+cIwAhBESEcmVcubLMz95/nw9+8fPgQ0AAax0z52g2Mk6GpzSzDBcCs6JAK8V4MqZWq1FYSxLFTPMJzjrSao2iKJjmOUdHPdI0pdVqcjaecnBwKI8+/pgnT55w584dfmy9peL2Rx/RzNLQnG+RZXVWVi7Qas9hYkPwICI45yEEtFH4EMCDiAICSMBozfibbVw9I11o4Z0DygKNKOpZjdOzEYPBKXlhefPq3/zxt8/lxYs//ABsc3OT+/fvI48ePWJntxtW19e5fuMKcSXBW493HucdQUAQAgE5B0UCQQIEBYHzOwElAuOcEEegNYFwLkMg+MBcs87S0jy2sIynOWenEw66B+x0d6QaV7l7924ZQ4QQApubm8iDBw84Hg6CUpoiz3GhhNPGEBlDCGWS/zkAAQIhlOkFwXv/9pg4SXDWErwHEXzwKBE8JWQSR2itUEqjjUZrw3B4yvHBEY5Akee05he4cfmy3Lt3DzO1Rdje2uarf71ElMI5h1IKQRApdwgB5xxaq7eaIOdEb7mtdRhjSqX/Xw3hHMyHgFYaCHjvvxMbUUSRKe2jNd3dffr94/DJp5+IOdg7oNvtcv36NSJjGA6HHB33iIxBa402hqIoaC/Mc3BwiAeUEhQK5Nyb1tJZXmZvf7+EU1LashQVEYUSEKWYTqbMzTWBwODkhEqlAiLYmaVaqdJeXIAAR8dHvPjyL8HsdbvS6XRCpVolracklSogxEnMaDTCWkscxxSFpVKrYaKodKQPKFV+kKKwFLMZ1VoNbXT5vIAPASUKo3WpoNFEcYQPZZHVapUQAlmWMhqNabVarKxcYDqZkk9zer0+qrvfZTabobRiqdMBAvW0hvMW5xwE0ErweBpZg0qSEHxAK4X3jjiOyRopXjxRXD6TiKC1IU3rVKsVZnaGhICdWWppjaQSI0qhtSEyEc46kiiiyKdopahUEyq1KolJMJc3LjOeTpEAO1vbKIHBcMh4MuXdd67RbM3TP+7x+s0bjDGcDAZcvXKVhcU2x4dHvHz9mkazgbMWfODdG+9g4piXL1/hvWM8HrPUbrNy4QJnw1NevXlN1syQADffe49atco3X3/N9u4OBNjt7qC0xiihs74q6unTp0RxLOOzM0anQ2wxw9oZzXqdzsoqShSra6tUkoSt/3zLXKPJ+voaSgmra2s0sybeBvZ2uly7eoU0TanXUzYuXWLQ6xNrw7VrV4mNYWWlw8pyh5P+Ke2FBeppiii4uH6RVmOOjY1LWGvp9fpMi5n88rPPUAC/fvaM/d09qSUVnLUstdo4ZxkO+mglDPo9RAL/+PvfRAGjsxFpLeVkOESL8Pz3v5MPPvxQTgYnRFFEkc84OjzkT8+fy082Nhj0+1SqNabTKUWe89c/fymT8RjnLN4Htr7dwjlHkc+o15vymy++kF99/nnZBwFu3brFs2fPyoly+zajySSMR2N88LQXF9nf30NEMd9q0Rv08EGxtrrGwd4uWT3DGE2eTxmcDFnsLGNnM3a2t2g0mkQ6YpJPWb14kd7xEUVesLy4wOHRMZVaStaos7O1TbVS4ac3b8rDhw+/O0l+dACeX/jnV68AH7KsTr9/QmGL8/6lyScTkiTBOYf3niiKSJKE4XCA954kSRDRmPNmfDo6pZokuBAopgWVSsw4nzHfzFhqt+Xx48d8XyyA/wJ1H5623SvHyAAAAABJRU5ErkJggg==',
+  scout_turret:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAGCAYAAADzG6+8AAABI0lEQVR4nF3Qu0rDUACA4T856c1itbk00ipCF6mDKJ1ERCdBEMUHEAqOdRAcO/h8CgVBFDqIaF2SmFTbJr2Y5Di5+D3Cp/BPtVqlqBUZzmakqcTz+lxd30jL0pXbTgcpJUIItGazyen5mTRMkzAcEY4jarUVJKCqKoVCDtfzcR1PXrbbiqIoACgXrRbHJ0eyXC4Txwm5fJa1VRuhCVzXJ5MRFAp5ptGE/v0DveAbfzBEazQ2pGEZzGdzfuIYfaFEkiRMJhGB76MKFdu2EEKwc7iH9fnFOJqiBcGA7l0XPwhQVUHFMjErBlvbm9Tr66QpaBlBOI54ev/g+bFHOBqj/KUs6jYH+7tyeamEadvoegnbtIjThCRNeH15w3FcstkcruPwC3/kc3JfEdG7AAAAAElFTkSuQmCC',
+  scout_barrel:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAECAYAAAB/VEQbAAAA4UlEQVR4nLXRMU4CURRA0fv/e48BjTOQEBOtXQLRgjWRuC8SE8ImLEyUAiwsWIA6DBSMgzP/WbgFvRs4xQXgcbHgabl0gMD/FWb3M+4mE999Vqw2m/AwnzPqj8iGGdvtFoC6rv8E0+H42vf7HTdXY/LLqU+nt+RFQQwBd3Cc59ULxUWOqCKiEKBrOzw5IoKIECXQfbckd1JKhBhREdxBJFJWe/R1vea9OOctBg6d0896qBruHRqVaEZZflCdHWjbxGCQUR+/UDM8JcwMU6U5nch6yrFusMwg/S7pmdE0DZ07PxtmW79Qshv4AAAAAElFTkSuQmCC',
+  medium_hull:'data:image/png;base64,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',
+  medium_turret:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAKCAYAAAC0VX7mAAACQklEQVR4nF3Q3UpUURiA4fdba+21f+bHnzQtC5FOYgihjoswEjyOwK4guoLAQ/FOPPUSAhsSuoHEC0gaGc2ZyXFm9uy9Z32dFETPJTwCICKoKn/t7OywdG9FF5fusLZ6l7IsmYxzfnz/Ievr6xwcHBBCQEQ4Pj6m3W5zdnbG0dERDkBVef/hA63Hj/X8vCPtL5959OQJm5stmvUakY/wPuH4U1v39/cF4OPeHmWes7W1xb+k1Wrx/OULffrsKYvz83QuLri6usJGDmcdGgKrqyuICL1en2azzmg8wVpH4h0hwGQ05vT0TA4PD5FX29u8ffdWI2vxcUSapkRRjGpgFirWVldoNmtMy4I0TXAuoioDZVWSJDH93g1ZmvBrMKBz3sGtPXioWZbgnOVmcMtkMv1zCo16jchF5EVBCDO63R7WGdIkYRYC+TSn3+8jZpH6XIPN5U2cWMFYS5YmxJEHIwQNAIRZQIwgAmIMv/o3+DiiVk/RmYDC0soSs6piWkwpygKTZinTvAQRxApKwBiDNRbnHNe9Pt5F1Bt1Nrxw31l8EoMqxgpGhDiOAaHT6eKcdfR6A4bDIWmWggjT8YQwC1TVjKCBTqfLw437eCB2hqRQCMLtaMxwOGIwGDK8HXFxcYm82d0lVJUWRUVQGI1GNBoNsizDx565+QWacw18ErGwMEfsPShYa7nqXvPz5zWXl5f0e9fUshThP6+3t9UnGXeXl4mTGAXSJCaKPcU0R4MSFFDFWoOIYZJPOP12yteTE/kNA/H6zYcmsSYAAAAASUVORK5CYII=',
+  medium_barrel:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB0AAAAFCAYAAAC5Fuf5AAABkUlEQVR4nK2OzU4TURxHz70z3GlTFBGY0hAqfsSYSQx7kgYj8RVckbgw8S0Ma41LHsCFD8LSLTWpGUMsrSOFIRWhM/Zj/nOvG2J071n9zm911Jt3b11zo8lsOmHOn8OOf1GpzTO8uqS+ssrZacr3pM/6nXXKsmQym2FnopxSeJ5HWRQYYwgCQ1EUaK3R2iPLMnxj8HwPKQSlLMY3nJ6f47fbh1grWGfZ3HzMrXzMJDAsPHrIjVoNUZbKfIV7D+4jhSAi/Pxx4QB838c5h0iBtZYgCBARREqW6iFSCs5BtVplOpmgPc3FKMPv9RIWF1cQEQ7bMc3VOlNnGc8KNI7sasRwOGR0mWEqFZaXbtPtHisPaN7dwBjDt6TH508xrVaL/klC/2uX7adPOEsHHB8dsbXVIo6/kCQnLDcaqGe7u6g0ZW1hDX1T83xnx03zXL3e3yfPc4wxdDod/ifqb3HO8fH9BzctS7ZfvlBaa5xzsLfHq8GAuNGAgwPCMAQgiiKAP1FpGhGG1zuKCK//KIr+Cf8NMJC/AoSJ8cEAAAAASUVORK5CYII=',
+  bulwark_hull:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADoAAAAZCAYAAABggz2wAAALC0lEQVR4nMWX+49c5XnHP897LnPmtveL7bXXd5ssYAhu2iaQWHISWWp/oZG8P4AUpATJCj/wD1Tuei3UVpEqpU1blapqxA+AYCWiIIqIaABzS52aWKbUYK8BY6/X9q53d3Zmdi7n8j794czMru2lRChqH2mOzjnznvd9vt/nLvw/yyOPTDC6XdR3hKNHJ6T9XlUZHx9namrq93KOfPGS9UVVcRyHf/nZz1gulfjtqVMYYxjcsIHr16/z7YMHmb1yRaenp0Ec+nr65M479+qbb79NpVKhv7+foYEBOX36jH7zwAOojWnUY5aXy/Laa+/y/vu/BsAYw9GjRwGYnJz8vwcqIqgqP/3Hf9Cv3/+HlCtlRIR6rU6xWMSqxRgHVYtNLEYEq0p1pUY2G+B7LogQxzFhMwQF1/NwHMPZDz/iP3/9G0ZHR2VyYhWcMYYkSTrPjuMAkCRJ595a+/sDevjwYaampnj88cf59qGDumPXVuIk7hCAphYXWT1CVVkuV+ju6sKIAyhWNf239Y21NiUQ+OTCp3i+z3snT7FUWubatWsy9dxzX0ZdANwv89HY2BgAfQN9mivkWVmp4TgGVUU1haYigCIKYgz1eoNrs3MYMeSzORKbtBemm2p6MY5LubxMoZDjyswsD3zrfppRwsl33tUn//mfsAphGGKMEEYJrmPwfI9GrU6hq8A7b77DU089JW1j3AZ0YmKCs2fPMjX1PF9k6GPHjjE5OUkQBOSyWRzjgCoi0rJiewvpAAgyARs3DBFkgtSSYkAsiKZgBVQNoOSzWRxjaDYazM7O0j8wyL3772XPnh1kgyxRHKGSeoBjHBzj0Gg26O7pZubyZQAee+yx24FqS8m2hs8//zzj4+PrglRVAPbv38/A4CBiDCIGqzGigoqyinaVMhGhUCx2YkgB0ZsJFQG1ihgDYhDHUK1WmJ9fpLRc4tKlSxSLXSRJgpKGhrWKWiWxlnyhwIULnwLwxhtv3LS3m1pBePT7j9Ld082T//ok4+PjTExM3JblDh8+3En54+MPkwl8bBKD56aQJNVWucUnWoCSJOkQuvaaEpg+GcdQXanj+h5JYlmp1bgwfZEb8wssLi7R39+H4zhEzSYigrWWejPEdx2y2QLNZmNdd3RVlaMTE/oHX/sq+UKBfX90D2+8dkImJyeZmJjg+PHjwGqiaEt/fxcjm0fIZDMYYzDWgChqtANaFNA0drnJa3SNCdfwoQoGPM+lvFzms0szVMoVFhcW5O//7ieMjIysh2FdudVIcuRHP9LvjX8PjKXZCCkWu5i7ep0XX/iFPP300zctfuQHP2DLpk088cQTPPTQQ9x97z6tVCsYAyIOjkljTIzTMZNqisV1XWySYFU77o+AY9KkhZKGgLVksjk+OPM+SWLpLhblxIkT3LN/P1EYkvV91BguX7zIW2+9dRvAm8NwDdC//Ou/0v1/fB/1ei2tUzH09HTz0gu/IJ8vMj8/jxghl81RKBaJopBKucKu3btoNJpUKmWy+RwL8wtcnpkhjmNEzGqYqpIkljAKyRWKYC1rS4sYk5aWJCGOI4JsjozvsXPbDnKFAp9dugiijIxsIUkSmvU6jSSivrJCV76ItVY8L6PGwIsvvCin/+s0wG2hJ3/+F0f1/gNfJ45jbJIQ5HOcee8MY3vvYOyuMcIwRIAoikiShLhVnMMwJI5icoW0VBgxGMdJzafaKS8ohI0Qx3XwgcQRVGS1frbEIITNCIzg+y6e42JpWV9pESgYxwBgVfEcl8RalhdLxHEMRvjNf7zHT//2JzIzM3MTWHd29ipLC0sMDPdjHJfz56bJBzn6h/o588H7uK5LsxHi+R6OI6krqhKFEc1Gk0JXATHp+9YFSIEokMQJYTMi5wp69pyYu+9UCXziKO40FO1KFIcJYRiSK+Q6+9C6M7LaeHReSvrTRGnW6gxtHOY7hw4iiv785y/K8ePHO67sXvz4Y3n1lVjv2ndXyoqF7xz6LjOzl8n4PmEUsbhQoru3SLFYwFqLMQYncACTxp61qdK3xIYATsYlSRST9dGv7FXxPdDV9i01rGCMQS1knADHcW5LfrcHHR2vMK6Q+D6VapV6o8EDB7/BYmmR7u6uTqvqvv766/A68uCDDzI4NKiPHvkhC0s3MGJS9/A8BoZ6O4DadFoFVbvK8OdIusamChUL2CRpWX7tGkVbJlK1tFPxrXvfCjytxYoVUBTjGKIoolKt8Kd/9ic6MDREb2+PiAhuu4Rks1ke/v7DlFfK1Go1XNftHBYEmU571z6gbbGOj34e8dJyaxQbJ+s3XdIGlYL8PO5uI1VSzhwxnZoqIjSbTYwx3Pe1fezdvVOHh4cwx44dQ1X5xjcf0EJXgWp1Bd/3b9rP2nUOV9BOi/e/iKZTx6qvrb/mS4mmRNqWZ7XjWESo1+tUqxUKPQV6B3ox7W+WS0ssl5cxjrll1FlHi/arL3DbztLfYd1qZvkdlt4qrTZwPSYVpdlo4LZ72ueenWLTlo0MDg9xY66E4wo9vUVsYjtJZm2MpFlfsdai1t6WiGj9b8SgtL1ivVmxlXWxqE3LSWJti5w1caGrPNzcSduW66YtZtu9Pc/D9z1OvnuScqm8Or30DQ7xyku/5NHHfoiIxQ+yFApF4jhK3SNJFRWRNLGIwXUcskEGaxWL7fSvxphO85rEFmstQcZvDQDtsSxtGtaqrK6S2IRMNkMcJ6uMimBEOgmr7XHpCNgueZAJ/JQ4I5QWSzz34r/x6YVPefPECXHn5uYA2LJli8zPXddfvfIr9t13D1cuzfDqy6+SJDFxlOB6LplMJu3PrVKv1YniGFCCIMDLZFoDt6VRr2OMkyrt+SCCmNSqjUYzfRbI+D6O67Y6sph6rYGYNOnkstkOiDBsksQWMQZVSzabw0jaMjbDJp7nEUcxkOC4Hjax3JibI06UTZs3y8TERGqEiYkJFhf7uDL7tq6srNAMG8RRzNz1OXw/I+VaTcfuHKOYCzCuS6PW4KNz5/AyGZIkYXh4AxsGB1ESavUm/332Q7q7CpTLFTaPjtLf04XruSyXylz45DOKXQUa9QbDQwMM9PcjxqFSKfPR+Qts3DBMqVTmjr27yOdz1FbqzM/Nc2lmhqHhIcJmxMimDfT1DxBFIUulEpc+uUiz0ZR8MdDevn7y+Tz5fI7A9zjwrQNy5MiR1HXX9IRy8OB30cRqkA0Y3b6VSqWiu7+yB6vC1m3baTYbJNZy6coMuWyeUqlE/0A/o9u3EIUhjTDk6rVr9Pb1EMcJQ0MDjG4ewTgOcwtLXLt+g0IxTxRGbNu+lUI+h+/5XJ9zW2Fg8TyHrVtHMY6D73tYLLV6HbWK1YRde3YiYshmA6LzEYVCjp27tmkSJ2m5cRw8z5Nnn3mWZ55+phMa68qhQ4cICl3qGqFarXJl9hobN21k8+YRpqenWalUGN08Ql9fHyd/e5qdu3dSLBb56OyHZD2XHTt3MDs7y8JimT137CbI5Tn7wYf4Runr7ubq3A1qccxX7x5juVzl/LlpNgwP4BqX5WqVTBCwe9c2KrUmH5+fZmTTBpaXliSyqp4fsG37KDduzHP1ylUGBwZwXJeM69Gwsfz7yy+vk/JukcOHDzM2Ntax8qlTp/jxj/+G0FpdWljAWnAcIRsEOJ5Ds9EkCiMq1SqI4HkuuWyQtnStJNFoRq1YdlvZNB0AGs2QJI5JEksm8HEdgxGnNTQ0iWMLRijkAuJEcR2D6zqUy1XEpN1CV08vUdSQV1566SYcBw4c4MSJE53n/wFuCI4VoWeyPQAAAABJRU5ErkJggg==',
+  bulwark_turret:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABkAAAANCAYAAABcrsXuAAADSklEQVR4nH2TTWucZRSGr+fjfecrXzOdZkw6RopNKoGupKDippCFfyDLgPQ/dGknIX9AC/6DIJguhG5cWBRFkZaClNJRGlNtmyZtMsnMm8wkk/d5n+e4mGoIWu/VgXNzn3OfD8VrcGVujql6XWqTNfr9lH7viMPDI9Yeras7d3484V35iIn6WekmXXXr1lcAaKX45Pp1ms0mAKrRaDA0OiTTFy6QumMCICKk/WPKlTJxbBEUrp/ifcD7DBvHpK6PzwJPnjzl8LBPa2eb2MSq1WqxsrJyqmEF8Nnnn8rl9y5z0O1ijcX7jLHRMfKFGOdSlNYoQGmFNRHFYonH6+sYG3GuPslBsk/wgSQ5wB0dsbW5xd2790nTvtppt7ELCwuMVcp0koTj/jFKKSQIxUIRLxmCoAB55VDrY7wLpKlDe0/SHhQw1lCbqOF2W5yvXWKnk/DOxRmpnKlgbT6WarWKBMEaA0AgoLVGa41IOLGs1CBQcKZaQQQkBJRS+MzTO+gRbExUKJLPxTzbeMb0zNvoqak3X5EyRITgA1ppFIrgAhIEQRAREHnVjGXz6Qt+/+0xxhhEwqC2AqU1WQhcnJlm6/kL2p0EG8c5iqUizjlEBPEehSJfyBGCEEJACGirEQSfetLUUZ+qgwbn/T/bNdYSaU3aT9HG0ut26ex1sBsbG3zz9W2yzKOATpKgtKJYKGCjiKFSCWMsE+feYGx0hPHxsxArMucGwsZgIosPgXa7Q3uvzfb2DoVcHlDcu/fLYNR/49rVa9x/+avMXppluFgkykUUC3nGx6torcmywPm3pjhTreJ9hlLQOzpit7XL7l6bw14Pawy5fJ6RkVHWHq3x3e3vB3+yuLg4cKwUCx9flbHyCHt7e+TzBUQphksFjDFkmR/sBaFSKeOc4+V2CwVEkSWyhswL3V6X2niN436fP9efq1NOGo0Gy8vLhBB4/4MPZbI+iUszFBDnc3jvCcFTrlQYHh4m6SRkmSMyEfvdfZxzKK3pdPb54dvbp7T/BRH531zzp5/ljwcPXsszxrC6usrq6urJ+f8n5ufh5k0ajQbNZpP5+XkePnzIuzMzlEQkzpfUjS+/YG5ujs3NTZrNJrOzswAsLS2dkvoLeCukYZJecGgAAAAASUVORK5CYII=',
+  bulwark_barrel:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAFCAYAAABW1IzHAAABqElEQVR4nD3Ry2oTURyA8e8/l5N0cm0qmZJAU0HQgHvFragbfQCfQsQXdFGoollI66ZNKjYX6TQ3pglJzpkzx0XF1bf8LT758OmjOz5qM58tqVarlCtlcnGUoojZdE7ve49Wq0V6lyK540HcZDadYZ2lUCgwGk/YpGvZbrcMhwNAobVGqfu222263aecn/+gXq8TNOOYR90umdYYnfGk+5jAWiiGjCd/iOMmz188o38xQAQ6DztsdltwoAqKk88ndI6PXBCG2CwDBw5ABFyOc6CUAnlP/3JA8PXLN05Pe7x7+5qN3kFmOFyvZNdquVTvsNayWCy4nd7iBz7lWgVjDGEQYvQ9UN/fx/M8rM0QEUQEhyAA4rBZRnFvj1IUEcRxTKfT4W614vf1iHSRMikWnVtdsV6tSW4SkpsZ48kEay2D/hBjNOJ5hEHAz7MzLi5/4fsemc3AORzuH+zhex6eJ6hCgeV8ibx89cZVqxW01mhtUEoRKkVuLSIeo9E1zoATy25niKIiWm/Jc8iB0A8wxkqazv7/M2ZNGJYATS2qcXB4QJIkNBoN/gKrd9SzUlVqrAAAAABJRU5ErkJggg==',
+};
+
+/* ============================================================
+   SPRITE RENDERER
+   Side-view hull / turret / barrel, drawn from embedded art.
+   The barrel is a separate layer pivoting at the mantlet so it
+   tracks the player's aim; hull and turret are static.
+   Sprites are near-greyscale, so each hull colour is baked once
+   at load into its own tinted canvas rather than being composited
+   every frame.
+   ============================================================ */
+/* ---------- the visitor (easter egg) — she is not tinted, she is exactly who she is ---------- */
+const EGG_IMG=new Image();
+EGG_IMG.src='data:image/jpeg;base64,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';
+
+const SPR={
+  ready:false, img:{}, tinted:{},
+  load(){
+    let pending=0, done=0;
+    for(const k in SPRITE_DATA){
+      const im=new Image(); pending++;
+      im.onload=()=>{ if(++done===pending) this.buildTints(); };
+      im.onerror=()=>{ if(++done===pending) this.buildTints(); };
+      im.src=SPRITE_DATA[k];
+      this.img[k]=im;
+    }
+    if(!pending) this.ready=false;
+  },
+  buildTints(){
+    try{
+      for(const k in this.img){
+        const im=this.img[k];
+        if(!im.width) continue;
+        this.tinted[k]=TANK_COLORS.map(c=>this.tint(im,c.hex));
+      }
+      this.ready=Object.keys(this.tinted).length>0;
+    }catch(e){ this.ready=false; }
+  },
+  tint(im,hex){
+    const cv=document.createElement('canvas');
+    cv.width=im.width; cv.height=im.height;
+    const g=cv.getContext('2d');
+    g.drawImage(im,0,0);
+    let d;
+    try{ d=g.getImageData(0,0,cv.width,cv.height); }catch(e){ return cv; }
+    const p=d.data;
+    const tr=parseInt(hex.slice(1,3),16), tg=parseInt(hex.slice(3,5),16), tb=parseInt(hex.slice(5,7),16);
+    for(let i=0;i<p.length;i+=4){
+      if(!p[i+3]) continue;
+      const lum=(p[i]*0.299+p[i+1]*0.587+p[i+2]*0.114)/255;
+      if(lum<0.22){ p[i]=p[i]*0.5; p[i+1]=p[i+1]*0.5; p[i+2]=p[i+2]*0.6; continue; } /* keep ink dark */
+      const k=0.30+lum*0.85;
+      p[i]  =Math.min(255,tr*k);
+      p[i+1]=Math.min(255,tg*k);
+      p[i+2]=Math.min(255,tb*k);
+    }
+    g.putImageData(d,0,0);
+    return cv;
+  },
+  get(part,chassis,colorIdx){
+    const name=['scout','medium','bulwark'][chassis]+'_'+part;
+    const set=this.tinted[name];
+    return set ? set[colorIdx]||set[0] : null;
+  }
+};
 
 /* ---------- chassis ---------- */
 const CHASSIS=[
@@ -664,18 +803,19 @@ const colHex=i=>(TANK_COLORS[i]||TANK_COLORS[0]).hex;
 function distinctColor(a,b){ return a===b ? (b+1)%TANK_COLORS.length : b; }
 
 /* ---------- loadout economy (non-campaign modes) ---------- */
-const LOADOUT_BUDGET=12;
-const AMMO_COST=[0,2,2,3,4,6,5,3,4,4];        /* SHELL is free and unlimited */
-const AMMO_MAX =[Infinity,5,5,4,3,1,2,4,3,3];
-const DEFAULT_LOADOUT={chassis:1, color:0, ammo:[0,2,1,1,0,0,0,1,0,0]};  /* costs exactly 12 */
+const LOADOUT_BUDGET=21;
+const AMMO_COST=[0,2,2,3,4,6,5,3,4,4,3,3,4];        /* SHELL is free and unlimited */
+const AMMO_MAX =[Infinity,5,5,4,3,1,2,4,3,3,4,3,2];
+const DEFAULT_LOADOUT={chassis:1, color:0, ammo:[0,3,1,1,1,0,0,1,0,0,0,1,0]};  /* costs exactly 21 */
 function loCost(a){ let c=0; for(let i=1;i<AMMO_COST.length;i++) c+=(a[i]||0)*AMMO_COST[i]; return c; }
-/* AI kit per archetype — flavour + it now actually spends its ammo */
+/* AI kit per archetype — flavour + it now actually spends its ammo.
+   Each carries its chassis's specialist round; weights below decide usage. */
 const ARCH_LOADOUT=[
- {chassis:1, ammo:[0,3,0,0,0,0,0,0,0,0]},   /* GUNNER  — shells + a few heavies */
- {chassis:1, ammo:[0,0,0,0,0,0,0,0,4,0]},   /* WARDEN  — napalm, denies ground */
- {chassis:0, ammo:[0,0,0,0,0,0,0,4,0,0]},   /* SNIPER  — railgun, fragile and precise */
- {chassis:2, ammo:[0,5,0,0,0,0,0,0,0,0]},   /* BRAWLER — bulwark full of heavies */
- {chassis:0, ammo:[0,0,3,2,2,0,0,0,0,0]},   /* WRAITH  — evasive, trick shots */
+ {chassis:1, ammo:[0,3,0,0,0,0,0,0,0,0,0,1,0]},   /* GUNNER  — shells + heavies + a mortar */
+ {chassis:1, ammo:[0,0,0,0,0,0,0,0,4,0,0,1,0]},   /* WARDEN  — napalm, denies ground */
+ {chassis:0, ammo:[0,0,0,0,0,0,0,4,0,0,2,0,0]},   /* SNIPER  — railgun + stings, fragile and precise */
+ {chassis:2, ammo:[0,5,0,0,0,0,0,0,0,0,0,0,1]},   /* BRAWLER — bulwark full of heavies + a breacher */
+ {chassis:0, ammo:[0,0,3,2,2,0,0,0,0,0,2,0,0]},   /* WRAITH  — evasive, trick shots */
 ];
 /* ---------- storage (persists on a real deploy; memory fallback in sandboxes) ---------- */
 /* ============================================================
@@ -789,6 +929,21 @@ const SFX={
     bp.frequency.exponentialRampToValueAtTime(crystal?5200:700,t+0.13);
     gain.connect(bp); bp.connect(this.master);
     this.env(gain,0.3,0.002,0.14);
+  },
+  laser(){
+    /* the visitor's weapon: a hard sawtooth dive with a noise sizzle on top */
+    if(!this.ready||this.muted) return;
+    const t=this.now();
+    const o=this.tone('sawtooth',960,0.24,1);
+    o.osc.frequency.setValueAtTime(960,t);
+    o.osc.frequency.exponentialRampToValueAtTime(140,t+0.22);
+    o.gain.connect(this.master);
+    this.env(o.gain,0.22,0.004,0.22);
+    const {gain}=this.noise(0.18,1);
+    const hp=this.ctx.createBiquadFilter();
+    hp.type='highpass'; hp.frequency.setValueAtTime(2400,t);
+    gain.connect(hp); hp.connect(this.master);
+    this.env(gain,0.1,0.002,0.16);
   },
   splash(){
     if(!this.ready||this.muted) return;
@@ -1066,8 +1221,8 @@ function savedLoadout(){
 /* ---------- campaign state ---------- */
 let CAMP=null;
 function newCamp(){
-  return {scrap:0, ammo:[Infinity,3,3,2,2,1,2,2,2,2],
-    upg:{barrel:false,armor:false,gyro:false,fuel:false}, snapshot:[Infinity,3,3,2,2,1,2,2,2,2]};
+  return {scrap:0, ammo:[Infinity,3,3,2,2,1,2,2,2,2,0,0,0],
+    upg:{barrel:false,armor:false,gyro:false,fuel:false}, snapshot:[Infinity,3,3,2,2,1,2,2,2,2,0,0,0]};
 }
 const SHOP_ITEMS=[
  {id:'a1',kind:'ammo',idx:1,label:'HEAVY SHELL +1',desc:'big crater, wind-resistant',price:25},
@@ -1372,7 +1527,8 @@ async function consultCommander(g,token){
     waterOnMap:g.waterLevel!=null,
     structures:g.structures.filter(s=>s.hp>0).map(s=>({xFrac:+(s.x/g.tw).toFixed(2),type:s.type})),
     playerRecentImpactsDxFromMe:g.recentImpacts.slice(-3),
-    ammoChoices:AMMO_NAMES.filter((n,i)=>!AMMO[i].special)
+    ammoChoices:AMMO_NAMES.filter((n,i)=>!AMMO[i].special
+      && (AMMO[i].chassis===undefined || AMMO[i].chassis===me.chassis))
   };
   const prompt='You are AX-9, the hostile tank commander in a 2D artillery duel. '
     +'Terrain is destructible; you are on the right, the player on the left. '
@@ -1380,7 +1536,7 @@ async function consultCommander(g,token){
     +'Decide your next action from this battle state:\n'+JSON.stringify(state)
     +'\nRespond ONLY with minified JSON, no prose, no markdown: '
     +'{"move":-1|0|1,"dist":<0..1>,"ammo":<one of ammoChoices>,"radio":"<taunt or terse comms, max 8 words>"} '
-    +'move -1 is toward the player, 1 is away. Prefer moving if recent impacts are close, HEAVY for entrenched targets, DRILLER if the player hides behind terrain or structures, escape water if drowning.';
+    +'move -1 is toward the player, 1 is away. Prefer moving if recent impacts are close, HEAVY for entrenched targets, BREACHER burrows through cover if the player hides behind terrain or structures, escape water if drowning.';
   try{
     const ctl=new AbortController();
     const to=setTimeout(()=>ctl.abort(),6000);
@@ -1493,12 +1649,12 @@ class Particles{
 /* ---------- tank ---------- */
 class Tank{
   constructor(x,color,facing,human){
-    this.x=x; this.y=0; this.hp=100; this.maxHp=100; this.dr=1; this.chassis=1;
+    this.x=x; this.y=0; this.hp=100; this.maxHp=100; this.dr=1; this.chassis=1; this.colorIdx=0;
     this.color=color; this.facing=facing;
     this.human=human;
     this.angle=facing>0?45:135; this.power=60; this.dead=false;
     this.vy=0; this.vx=0; this.recoil=0; this.flash=0; this.tilt=0;
-    this.ammo=[Infinity,0,0,0,0,0,0,0,0,0]; this.ammoSel=0;
+    this.ammo=[Infinity,0,0,0,0,0,0,0,0,0,0,0,0]; this.ammoSel=0;
     this.charges=0; this.supportUnlocked=false;
     this.missStreak=0; this.reconShots=0;
     this.maxFuel=60; this.fuel=60; this.dodgeFuel=0;
@@ -1572,10 +1728,51 @@ class Tank{
     return d;
   }
   heal(h){ this.hp=Math.min(this.maxHp,this.hp+h); }
+  /* Sprite path. Returns false if the art is unavailable so draw() can fall
+     back to the original vector renderer — the game must never depend on
+     images having decoded. */
+  drawSprite(c,col){
+    const hull=SPR.get('hull',this.chassis,this.colorIdx);
+    const tur =SPR.get('turret',this.chassis,this.colorIdx);
+    const bar =SPR.get('barrel',this.chassis,this.colorIdx);
+    if(!hull||!tur||!bar) return false;
+    const a=this.angle*Math.PI/180;
+    const rl=this.recoil*4;
+    c.save();
+    c.translate(this.x,this.y);
+    if(this.tilt) c.rotate(this.tilt);
+    if(this.facing<0) c.scale(-1,1);          /* hostile faces left */
+    c.imageSmoothingEnabled=false;
+    if(this.flash>0){ c.globalAlpha=1; c.filter='brightness(2.2)'; }
+    /* hull sits with its tracks on the ground line */
+    const hx=-hull.width/2, hy=-hull.height+2;
+    c.drawImage(hull,hx,hy);
+    /* turret rides just forward of centre on the deck */
+    const tx=hx+hull.width*0.40-tur.width/2, ty=hy-tur.height+2;
+    c.drawImage(tur,tx,ty);
+    /* barrel pivots at the mantlet and tracks the gun angle */
+    const px=tx+tur.width*0.72, py=ty+tur.height*0.45;
+    c.save();
+    c.translate(px,py);
+    c.rotate(this.facing<0 ? Math.PI-a : -a);
+    c.drawImage(bar,-rl,-bar.height/2);
+    c.restore();
+    c.filter='none';
+    c.restore();
+    /* damage smoke marker stays in the vector layer */
+    if(this.hp/this.maxHp<0.3){
+      c.save(); c.translate(this.x,this.y);
+      c.strokeStyle='#ff8a4a'; c.globalAlpha=0.8; c.lineWidth=1.2;
+      c.beginPath(); c.moveTo(-4,-14); c.lineTo(0,-19); c.lineTo(4,-14); c.stroke();
+      c.restore(); c.globalAlpha=1;
+    }
+    return true;
+  }
   draw(c){
     if(this.recoil>0) this.recoil=Math.max(0,this.recoil-0.04);
     const col=this.flash>0?'#ffffff':this.color;
     if(this.flash>0) this.flash-=0.02;
+    if(SPR.ready && this.drawSprite(c,col)) return;
     c.save(); c.translate(this.x,this.y);
     if(this.tilt) c.rotate(this.tilt);
     c.strokeStyle=col; c.lineWidth=1.6;
@@ -1682,6 +1879,41 @@ function toast(msg){
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>ui.toast.classList.remove('show'),2400);
 }
+/* ---------- first-run coach (BUILD 2.1.1) ----------
+   One-time contextual hints for the mechanics a new player cannot discover:
+   the loadout economy, aiming, structural collapse, support charges, wind.
+   Each fires once per device (persisted in vs_hints), one at a time, tap or
+   7s to dismiss. Not a tutorial level — the game itself stays the teacher. */
+const HINTS={
+  aim:      'DRAG ANYWHERE TO AIM · <b>RELEASE TO SET</b> · FIRE WHEN READY',
+  loadout:  '◇ IS YOUR BUDGET — <b>SHELL IS ALWAYS FREE</b> · ✕ CLEAR EMPTIES THE RACK',
+  collapse: 'UNDERMINED GROUND <b>FALLS</b> — bury a hull or drop it into a pit',
+  charge:   '⬡ SUPPORT EARNED — <b>AIRSTRIKE · REPAIR · RECON</b> on the right',
+  wind:     'WIND BENDS EVERY SHELL — <b>HEAVY and RAILGUN resist it</b>',
+};
+let hintSeen=store.get('vs_hints')||{};
+let hintTimer=null, hintQueue=[];
+function hint(id){
+  if(hintSeen[id]||!HINTS[id]) return;
+  hintSeen[id]=true; store.set('vs_hints',hintSeen);   /* mark first — a hint that spams is worse than none */
+  hintQueue.push(id);
+  if(hintQueue.length===1) showNextHint();
+}
+function showNextHint(){
+  const id=hintQueue[0]; if(!id) return;
+  const el=$('hintband');
+  el.innerHTML=HINTS[id];
+  el.classList.add('show');
+  clearTimeout(hintTimer);
+  hintTimer=setTimeout(dismissHint,7000);
+}
+function dismissHint(){
+  clearTimeout(hintTimer);
+  $('hintband').classList.remove('show');
+  hintQueue.shift();
+  if(hintQueue.length) setTimeout(showNextHint,400);
+}
+$('hintband').addEventListener('click',dismissHint);
 let radioTimer=null;
 function radioMsg(msg){
   if(!msg) return;
@@ -1726,13 +1958,17 @@ class Game{
     /* ---- apply loadouts ---- */
     const P1=lo1||savedLoadout();
     this.t1.applyChassis(P1.chassis);
-    this.t1.color=colHex(P1.color||0);
+    this.t1.color=colHex(P1.color||0); this.t1.colorIdx=P1.color||0;
     if(mode==='camp'){
       if(!CAMP) CAMP=newCamp();      /* never rely on the caller having built it */
       CAMP.level=level;
       while(CAMP.ammo.length<AMMO.length) CAMP.ammo.push(0);
       CAMP.ammo[5]=1; /* LION: one per sector, not purchasable */
       CAMP.ammo[6]=2; /* BIGBOY: two per sector, not purchasable */
+      /* specialist rounds are issued with the hull, not bought: two per sector
+         for the chassis you deployed with, and none for the ones you didn't */
+      CAMP.ammo[10]=0; CAMP.ammo[11]=0; CAMP.ammo[12]=0;
+      CAMP.ammo[10+P1.chassis]=2;
       CAMP.snapshot=CAMP.ammo.slice();
       saveCampaign();
       this.t1.ammo=CAMP.ammo;               /* campaign brings what you own */
@@ -1751,7 +1987,7 @@ class Game{
     this.t2.ammo=P2.ammo.slice(); this.t2.ammo[0]=Infinity;
     /* hostile defaults to rose; never let the two hulls collide */
     const foeCol=distinctColor(P1.color||0, (P2.color!==undefined?P2.color:1));
-    this.t2.color=colHex(foeCol);
+    this.t2.color=colHex(foeCol); this.t2.colorIdx=foeCol;
     this.lo1=P1; this.lo2=Object.assign({},P2,{color:foeCol});
     /* HUD bars inherit the hull colours */
     const b1=document.querySelector('.hp.p1'), b2=document.querySelector('.hp.p2');
@@ -1774,6 +2010,8 @@ class Game{
     this.prevPhase='aim';
     this.hurricane=false; this.windMax=this.map.wind;
     this.pokeTaps=0; this.pokeLast=0; this.pokeCd=0;
+    this.skyTaps=0; this.skyLast=0;              /* easter egg: the visitor */
+    this.monster=null; this.monsterDone=false; this.beams=[];
     this.wind=0; this.rollWind();
     this.shake=0; this.stars=this.makeStars(); this.ridges=this.makeRidges();
     this.aiTurns=0; this.aiTarget=null; this.aiAnim=0;
@@ -1852,6 +2090,7 @@ class Game{
   }
   rollWind(){
     this.wind=rand(-this.windMax,this.windMax);
+    if(Math.abs(this.wind)>=6) hint('wind');
     this.pushWindHUD();
   }
   pushWindHUD(){
@@ -1897,6 +2136,7 @@ class Game{
   grantCharge(t,msg){
     SFX.chime(true);
     t.charges=Math.min(3,t.charges+1);
+    if(t.human) hint('charge');
     if(!t.supportUnlocked) t.supportUnlocked=true;
     if(msg) toast(msg);
     this.updateHUD();
@@ -2389,6 +2629,7 @@ class Game{
       }
       SFX.collapse(d.count);
       this.chunks.push(new Chunk(d));
+      hint('collapse');
     }
   }
   updateChunks(dt){
@@ -2691,6 +2932,113 @@ class Game{
     this.rollWind();
     this.beginTurn(this.turn===1?2:1);
   }
+  /* ---------- easter egg: THE VISITOR ----------
+     Ten fast taps on the horizon summon her. She descends to mid-screen,
+     lases both hulls three times each (heavy, real damage through the normal
+     damage path, real craters, real collapse), laughs, and leaves. If anyone
+     died — and they almost certainly did — the match ends the normal way. */
+  startMonster(){
+    this.monsterDone=true;
+    this.monster={phase:'in', t:0, x:this.tw/2, y:-140, ty:150, volley:0, bob:0};
+    this.beams=[];
+    SFX.roar();
+    this.shake=Math.max(this.shake,7);
+    this.rings.push({x:this.tw/2,y:160,r:8,max:120,c:'#ff3366',a:1});
+    toast('⚠ UNKNOWN CONTACT');
+  }
+  updateMonster(dt){
+    const m=this.monster; if(!m) return;
+    m.t+=dt; m.bob+=dt;
+    for(const b of this.beams) b.life-=dt;
+    this.beams=this.beams.filter(b=>b.life>0);
+    if(m.phase==='in'){
+      m.y += (m.ty-m.y)*Math.min(1,dt*4.5);
+      if(m.t>0.9){ m.phase='fire'; m.t=0; }
+    } else if(m.phase==='fire'){
+      if(m.t>=0.6){
+        m.t=0;
+        const tgt=(m.volley%2===0)?this.t1:this.t2;
+        m.volley++;
+        if(!tgt.dead){
+          this.beams.push({x1:m.x, y1:m.y+12, x2:tgt.x, y2:tgt.y-8, life:0.3});
+          SFX.laser();
+          /* red explosion at the hull: crater, collapse check, particles, report */
+          this.terr.carve(tgt.x, tgt.y-2, 20);
+          this.collapseAt(tgt.x, tgt.y-2, 20);
+          this.particles.burst(tgt.x, tgt.y-8, '#ff3366', 30, 240, 1.0, 3);
+          this.rings.push({x:tgt.x, y:tgt.y-8, r:4, max:46, c:'#ff3366', a:1});
+          SFX.explode(30,false);
+          this.shake=Math.max(this.shake,5);
+          tgt.damage(45);
+        }
+        if(m.volley>=6){
+          m.phase='laugh'; m.t=0;
+          const r=$('radio');
+          if(r){ r.textContent='HA HA HA — IT\'S ONLY PLAY TIME FOR ME!'; r.classList.add('show'); }
+        }
+      }
+    } else if(m.phase==='laugh'){
+      if(m.t>2.4){
+        m.phase='out'; m.t=0;
+        const r=$('radio'); if(r) r.classList.remove('show');
+      }
+    } else if(m.phase==='out'){
+      m.y -= 240*dt;
+      if(m.t>0.8){
+        this.monster=null; this.beams=[];
+        if(this.t1.dead||this.t2.dead) this.finish();
+      }
+    }
+  }
+  drawMonster(c){
+    const m=this.monster; if(!m) return;
+    /* lasers first, so they emerge from behind her portal edge */
+    for(const b of this.beams){
+      const a=Math.min(1,b.life/0.3);
+      c.save();
+      c.globalCompositeOperation='lighter';
+      c.strokeStyle='rgba(255,51,102,'+(0.9*a)+')';
+      c.lineWidth=5; c.shadowColor='#ff3366'; c.shadowBlur=18;
+      c.beginPath(); c.moveTo(b.x1,b.y1); c.lineTo(b.x2,b.y2); c.stroke();
+      c.lineWidth=1.6; c.strokeStyle='rgba(255,230,240,'+a+')';
+      c.beginPath(); c.moveTo(b.x1,b.y1); c.lineTo(b.x2,b.y2); c.stroke();
+      c.restore();
+    }
+    const bob=Math.sin(m.bob*2.4)*5;
+    const R=56, x=m.x, y=m.y+bob;
+    const alpha = m.phase==='out' ? Math.max(0,1-m.t/0.8) : 1;
+    c.save();
+    c.globalAlpha=alpha;
+    /* the portal ring — pulsing hostile red */
+    c.strokeStyle='#ff3366';
+    c.shadowColor='#ff3366'; c.shadowBlur=24;
+    c.lineWidth=3+Math.sin(m.bob*5)*1.2;
+    c.beginPath(); c.arc(x,y,R+5,0,Math.PI*2); c.stroke();
+    /* the face — clipped to the portal; a red triangle stands in until the
+       image has decoded (the game must never depend on assets loading) */
+    c.save();
+    c.beginPath(); c.arc(x,y,R,0,Math.PI*2); c.clip();
+    if(EGG_IMG.width){
+      c.shadowBlur=0;
+      c.drawImage(EGG_IMG, x-R, y-R, R*2, R*2);
+      /* scanline wash so a photograph reads as a transmission, not a sticker */
+      c.globalAlpha=alpha*0.16;
+      c.fillStyle='#ff3366';
+      for(let sy=-R; sy<R; sy+=5) c.fillRect(x-R, y+sy, R*2, 2);
+      c.globalAlpha=alpha;
+    } else {
+      c.fillStyle='rgba(42,5,16,0.92)'; c.fillRect(x-R,y-R,R*2,R*2);
+      c.fillStyle='#ff3366'; c.font='64px monospace';
+      c.textAlign='center'; c.textBaseline='middle'; c.fillText('▲',x,y+4);
+    }
+    c.restore();
+    if(m.phase==='laugh'){
+      c.fillStyle='#ff8fae'; c.font='11px monospace';
+      c.textAlign='center'; c.shadowColor='#ff3366'; c.shadowBlur=10;
+      c.fillText('HA HA HA',x,y-R-18);
+    }
+    c.restore();
+  }
   recordResult(won,drew){
     if(!PROFILE||this.mode==='hotseat') return;   /* hotseat has no single "you" */
     PROFILE.matches++;
@@ -2842,7 +3190,8 @@ class Game{
     for(const t of [this.t1,this.t2]){
       if(t.dead) continue;
       if(t===p.owner && p.age<0.25) continue;
-      if(Math.abs(p.x-t.x)<19 && Math.abs(p.y-(t.y-8))<15){
+      const hw=[20,24,29][t.chassis]||24;
+      if(Math.abs(p.x-t.x)<hw && Math.abs(p.y-(t.y-8))<15){
         this.explode(p.x,p.y,am,t,p.owner,p.shotId);
         this.onDetonate(p);
         return false;
@@ -2886,6 +3235,27 @@ class Game{
           this.explode(p.x,p.y,am,null,p.owner,p.shotId); this.onDetonate(p); return false;
         }
         return true;
+      }
+      /* BREACHER — burrows through dirt for a fixed distance, then detonates.
+         Deterministic by construction (no RNG): replays and cross-device play
+         must carve the identical tunnel. Crystal is handled above and ends the
+         run with a ricochet, which is what "crystal stops drillers" means. */
+      if(am.drill){
+        if(p.drillLeft===undefined){
+          p.drillLeft=am.drill;
+          SFX.ricochet(false);                    /* the bite: one entry report */
+          this.shake=Math.max(this.shake,2.5);
+        }
+        const dsp=Math.hypot(p.vx,p.vy);
+        if(p.drillLeft>0 && dsp>110){
+          this.terr.carve(p.x,p.y,am.drillR||7);
+          p.drillLeft-=dsp*dt;
+          const drag=Math.pow(0.5,dt*3);          /* dirt is thick */
+          p.vx*=drag; p.vy*=drag;
+          this.particles.spark(p.x,p.y,am.color);
+          return true;
+        }
+        /* spent or stalled — fall through to the detonation below */
       }
       this.explode(p.x,p.y,am,null,p.owner,p.shotId);
       this.onDetonate(p);
@@ -2993,6 +3363,7 @@ class Game{
   }
   update(dt){
     this.particles.update(dt);
+    this.updateMonster(dt);
     if(this.shake>0) this.shake=Math.max(0,this.shake-dt*26);
     this.rings=this.rings.filter(f=>{ f.r+=dt*300; f.a-=dt*2.4; return f.a>0; });
     this.flashes=this.flashes.filter(f=>{ f.t+=dt; return f.t<0.09; });
@@ -3404,6 +3775,7 @@ class Game{
     }
     if(!this.t1.dead) this.t1.draw(c); else this.drawWreck(c,this.t1);
     if(!this.t2.dead) this.t2.draw(c); else this.drawWreck(c,this.t2);
+    this.drawMonster(c);
     this.particles.draw(c);
     c.setTransform(DPR,0,0,DPR,0,0);
     this.drawStorm(c);
@@ -3506,6 +3878,22 @@ function pdown(e){
       t.eggTaps=0;
     }
   }
+  /* easter egg: TEN quick taps anywhere on the open horizon -> the visitor.
+     Sky taps are also aim taps, so they are counted WITHOUT being consumed —
+     only the tenth is swallowed. Not online: her damage is applied locally
+     and a spectacle one player can't see would be a desync, not a joke. */
+  if(!game.online && !game.monster && !game.monsterDone){
+    const wx=s2wX(p.x), wy=s2wY(p.y);
+    const sky = wy < game.terr.surfaceY(wx)-40
+      && Math.hypot(wx-game.t1.x, wy-(game.t1.y-8))>44
+      && Math.hypot(wx-game.t2.x, wy-(game.t2.y-8))>44;
+    if(sky){
+      const now=performance.now();
+      game.skyTaps=(now-game.skyLast<700)?game.skyTaps+1:1;
+      game.skyLast=now;
+      if(game.skyTaps>=10){ game.skyTaps=0; game.startMonster(); return; }
+    } else game.skyTaps=0;
+  }
   drag=p; paim(e);
 }
 function pmove(e){ if(drag&&aimAllowed()) paim(e); }
@@ -3538,6 +3926,9 @@ document.querySelectorAll('.ammobtn').forEach(b=>{
     const t=game.humanTank(), i=+b.dataset.a;
     if(t.ammo[i]>0){ SFX.ui(); t.ammoSel=i; game.updateHUD(); }
   });
+  /* left-edge tint marks the munition category, matching the loadout and shop */
+  const cat=AMMO_CAT_OF[+b.dataset.a];
+  if(cat){ b.style.borderLeftColor=cat.accent; b.style.borderLeftWidth='3px'; }
 });
 ui.fire.addEventListener('click',()=>{ SFX.ui(); playerFire(); });
 function playerFire(){
@@ -3603,6 +3994,7 @@ window.addEventListener('touchmove',e=>{
 /* ---------- audio unlock + mute ---------- */
 loadProfile();
 TIER.detect();
+try{ SPR.load(); }catch(e){}
 CAMP = loadCampaign();
 setTimeout(()=>{ try{ refreshTitle(); }catch(e){} },0);          /* campaign now survives a reload */
 SFX.muted = store.get('vs_muted')===true;
@@ -3635,6 +4027,7 @@ $('windrow').addEventListener('click',()=>{
 /* ---------- loadout screen ---------- */
 let LO={chassis:1, ammo:[0,0,0,0,0,0,0]}, LO_DONE=null, LO_CANCEL=null, LO_CHASSIS_ONLY=false;
 function openLoadout(opts){
+  hint('loadout');
   LO = opts.start || savedLoadout();
   if(LO.color===undefined) LO.color=0;
   LO_DONE = opts.onDeploy; LO_CANCEL = opts.onBack;
@@ -3643,11 +4036,16 @@ function openLoadout(opts){
   $('loSub').textContent = opts.sub || 'CHOOSE YOUR CHASSIS AND WHAT YOU CARRY';
   $('loAmmo').classList.toggle('hidden', LO_CHASSIS_ONLY);
   $('loBudget').classList.toggle('hidden', LO_CHASSIS_ONLY);
+  $('loClear').classList.toggle('hidden', LO_CHASSIS_ONLY);
   $('loOwned').classList.toggle('hidden', !LO_CHASSIS_ONLY);
   renderLoadout();
   $('loadout').classList.remove('hidden');
 }
 function renderLoadout(){
+  /* specialist rounds cannot ride along to a hull that can't fire them —
+     switching chassis silently refunds them into the budget */
+  for(let i=0;i<AMMO.length;i++)
+    if(AMMO[i].chassis!==undefined && AMMO[i].chassis!==LO.chassis && LO.ammo[i]) LO.ammo[i]=0;
   /* chassis cards */
   const cc=$('loChassis'); cc.innerHTML='';
   for(const c of CHASSIS){
@@ -3668,39 +4066,61 @@ function renderLoadout(){
     cw.appendChild(b);
   }
   if(LO_CHASSIS_ONLY){
-    /* campaign: arsenal comes from your stores */
-    const parts=[];
-    for(let i=1;i<AMMO_NAMES.length;i++){
-      const n=CAMP?CAMP.ammo[i]:0;
-      if(n>0) parts.push(AMMO_NAMES[i]+' ×'+n);
+    /* campaign: arsenal comes from your stores, grouped by category */
+    const lines=[];
+    for(const cat of AMMO_CATS){
+      const parts=cat.idx.filter(i=>i!==0 && (CAMP?CAMP.ammo[i]:0)>0)
+        .map(i=>AMMO_NAMES[i]+' ×'+CAMP.ammo[i]);
+      if(parts.length) lines.push(`<span style="color:${cat.accent};opacity:.85;letter-spacing:2px">${cat.name}</span>&nbsp; ${parts.join(' · ')}`);
     }
     $('loOwned').innerHTML='ARSENAL FROM YOUR STORES<br>'+
-      (parts.length?parts.join(' · '):'standard shells only')+
+      (lines.length?lines.join('<br>'):'standard shells only')+
       '<br><span style="opacity:.6">buy more at requisitions between sectors</span>';
   } else {
     const box=$('loAmmo'); box.innerHTML='';
-    for(let i=1;i<AMMO_NAMES.length;i++){
-      const row=document.createElement('div'); row.className='lorow';
-      const cost=AMMO_COST[i], have=LO.ammo[i]||0;
-      const spent=loCost(LO.ammo), left=LOADOUT_BUDGET-spent;
-      const desc={1:'big crater, resists wind',2:'two ricochets',
-        3:'airbursts at apex, rains 4 bomblets',4:'curves toward the target mid-flight',
-        5:'map-wide drone strike',6:'huge blast, unguided',
-        7:'flat and fast, needs a clear line',8:'burning ground for several turns',
-        9:'bends every shell that follows'}[i];
-      row.innerHTML=`<span class="nm">${AMMO_NAMES[i]}<small>${desc}</small></span>`
-        +`<span class="cost">◇${cost} ea</span>`;
-      const dec=document.createElement('button'); dec.className='lobtn'; dec.textContent='−';
-      dec.disabled=have<=0;
-      dec.addEventListener('click',()=>{ LO.ammo[i]=Math.max(0,have-1); renderLoadout(); });
-      const q=document.createElement('span'); q.className='qty'; q.textContent=have;
-      const inc=document.createElement('button'); inc.className='lobtn'; inc.textContent='+';
-      inc.disabled = have>=AMMO_MAX[i] || left<cost;
-      inc.addEventListener('click',()=>{ LO.ammo[i]=have+1; renderLoadout(); });
-      row.appendChild(dec); row.appendChild(q); row.appendChild(inc);
-      box.appendChild(row);
+    const spent=loCost(LO.ammo), left=LOADOUT_BUDGET-spent;
+    for(const cat of AMMO_CATS){
+      const sec=document.createElement('div'); sec.className='locat';
+      sec.style.setProperty('--cat',cat.accent);
+      const head=document.createElement('div'); head.className='locathead'; head.textContent=cat.name;
+      const grid=document.createElement('div'); grid.className='locatgrid';
+      for(const i of cat.idx){
+        const row=document.createElement('div'); row.className='lorow';
+        const cost=AMMO_COST[i], have=LO.ammo[i]||0;
+        const nm=document.createElement('span'); nm.className='nm'; nm.textContent=AMMO_NAMES[i];
+        const meta=document.createElement('span'); meta.className='meta';
+        const req=AMMO[i].chassis;
+        if(i===0){
+          /* SHELL — free and unlimited, so it carries no stepper */
+          row.classList.add('free');
+          meta.textContent=AMMO_BLURB[0];
+          const tag=document.createElement('span'); tag.className='freetag'; tag.textContent='∞';
+          row.appendChild(nm); row.appendChild(tag); row.appendChild(meta);
+        } else if(req!==undefined && req!==LO.chassis){
+          /* wrong hull: show it (the kit stays discoverable) but keep it inert */
+          row.classList.add('lock');
+          meta.innerHTML=`<b>◇${cost}</b> · ${AMMO_BLURB[i]||''}`;
+          const tag=document.createElement('span'); tag.className='req';
+          tag.textContent=CHASSIS[req].name+' ONLY';
+          row.appendChild(nm); row.appendChild(tag); row.appendChild(meta);
+        } else {
+          meta.innerHTML=`<b>◇${cost}</b> · ${AMMO_BLURB[i]||''}`;
+          const step=document.createElement('div'); step.className='step';
+          const dec=document.createElement('button'); dec.className='lobtn'; dec.textContent='−';
+          dec.disabled=have<=0;
+          dec.addEventListener('click',()=>{ LO.ammo[i]=Math.max(0,have-1); renderLoadout(); });
+          const q=document.createElement('span'); q.className='qty'; q.textContent=have;
+          const inc=document.createElement('button'); inc.className='lobtn'; inc.textContent='+';
+          inc.disabled = have>=AMMO_MAX[i] || left<cost;
+          inc.addEventListener('click',()=>{ LO.ammo[i]=have+1; renderLoadout(); });
+          step.appendChild(dec); step.appendChild(q); step.appendChild(inc);
+          row.appendChild(nm); row.appendChild(step); row.appendChild(meta);
+        }
+        grid.appendChild(row);
+      }
+      sec.appendChild(head); sec.appendChild(grid); box.appendChild(sec);
     }
-    const spent=loCost(LO.ammo), over=spent>LOADOUT_BUDGET;
+    const over=spent>LOADOUT_BUDGET;
     const bd=$('loBudget');
     bd.textContent='BUDGET ◇ '+spent+' / '+LOADOUT_BUDGET+'   ·   SHELL: free, unlimited';
     bd.classList.toggle('over',over);
@@ -3709,10 +4129,19 @@ function renderLoadout(){
 }
 $('loDeploy').addEventListener('click',()=>{
   if(!LO_CHASSIS_ONLY && loCost(LO.ammo)>LOADOUT_BUDGET) return;
+  /* belt and braces: a deployed kit never carries another hull's rounds */
+  for(let i=0;i<AMMO.length;i++)
+    if(AMMO[i].chassis!==undefined && AMMO[i].chassis!==LO.chassis) LO.ammo[i]=0;
   const out={chassis:LO.chassis, color:LO.color||0, ammo:LO.ammo.slice()};
   store.set('vs_loadout',out);          /* remember it — one tap next time */
   $('loadout').classList.add('hidden');
   LO_DONE && LO_DONE(out);
+});
+$('loClear').addEventListener('click',()=>{
+  /* zero the whole package so the player can rebuild from a clean rack */
+  LO.ammo=AMMO.map(()=>0);
+  SFX.ui();
+  renderLoadout();
 });
 $('loBack').addEventListener('click',()=>{
   $('loadout').classList.add('hidden');
@@ -4184,6 +4613,7 @@ menuBtn.addEventListener('click',()=>{
   ui.radio.classList.remove('show');
   ui.uplink.classList.add('hidden');
   ui.toast.classList.remove('show');
+  $('hintband').classList.remove('show'); hintQueue.length=0;
   ctx.clearRect(0,0,W,H);
   refreshTitle();
   $('title').classList.remove('hidden');
@@ -4195,7 +4625,7 @@ function openShop(nextLevel){
   $('shopscrap').textContent='SCRAP ◈ '+CAMP.scrap;
   const grid=$('shopgrid');
   grid.innerHTML='';
-  for(const item of SHOP_ITEMS){
+  const makeItem=(item)=>{
     const b=document.createElement('button');
     b.className='shopitem';
     const owned=item.kind==='upg'&&CAMP.upg[item.key];
@@ -4209,8 +4639,24 @@ function openShop(nextLevel){
       saveCampaign();
       openShop(nextLevel);
     });
-    grid.appendChild(b);
+    return b;
+  };
+  const section=(name,accent,items)=>{
+    if(!items.length) return;
+    const sec=document.createElement('div'); sec.className='shopcat';
+    sec.style.setProperty('--cat',accent);
+    const h=document.createElement('div'); h.className='shopcathead'; h.textContent=name;
+    const g=document.createElement('div'); g.className='shopcatgrid';
+    items.forEach(it=>g.appendChild(makeItem(it)));
+    sec.appendChild(h); sec.appendChild(g); grid.appendChild(sec);
+  };
+  /* ammo grouped by the same munition categories used on the loadout screen */
+  for(const cat of AMMO_CATS){
+    const items=cat.idx.map(i=>SHOP_ITEMS.find(it=>it.kind==='ammo'&&it.idx===i)).filter(Boolean);
+    section(cat.name, cat.accent, items);
   }
+  /* field upgrades — not munitions, so a distinct steel accent */
+  section('UPGRADES', '#8fa3c0', SHOP_ITEMS.filter(it=>it.kind==='upg'));
   $('deploybtn').onclick=()=>{ ov.classList.add('hidden');
     openLoadout({title:'DEPLOY TO SECTOR '+String(nextLevel+1).padStart(2,'0'),
       sub:'CHOOSE YOUR CHASSIS', chassisOnly:true,
@@ -4253,6 +4699,7 @@ function startGame(mode,level,lo1,lo2){
     return;
   }
   game=new Game(mode,level,lo1,lo2);
+  if(mode!=='online') hint('aim');
 }
 function refreshProfileBar(){
   const el=$('profileBar');
