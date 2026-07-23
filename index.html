@@ -360,11 +360,7 @@
 <div id="toast"></div>
 <div id="powerpick" class="hidden">
   <div class="pt">2-HIT STREAK · CHOOSE A POWERUP</div>
-  <div class="pbtns">
-    <button class="pubtn" data-p="over"><b>OVERCHARGE</b>next shot: 1.5× damage, 1.4× blast</button>
-    <button class="pubtn" data-p="phantom"><b>PHANTOM PLATING</b>fully absorbs the next hit you take</button>
-    <button class="pubtn" data-p="tp"><b>TELEPORT</b>tap anywhere — instant relocation</button>
-  </div>
+  <div class="pbtns"><!-- generated per draw: 1 offense · 1 defense · 1 utility --></div>
 </div>
 
 <div id="ctl">
@@ -381,21 +377,7 @@
       <div class="fuelbar"><i id="fuel" style="width:100%"></i></div></div>
     <button class="mv" id="mvL">◀</button>
     <button class="mv" id="mvR">▶</button>
-    <div id="ammo">
-      <button class="ammobtn sel" data-a="0">SHELL<span class="q">∞</span></button>
-      <button class="ammobtn" data-a="1">HEAVY<span class="q cnt" data-c="1">0</span></button>
-      <button class="ammobtn" data-a="6">BIGBOY<span class="q cnt" data-c="6">0</span></button>
-      <button class="ammobtn" data-a="2">BOUNCE<span class="q cnt" data-c="2">0</span></button>
-      <button class="ammobtn" data-a="4">SEEKER<span class="q cnt" data-c="4">0</span></button>
-      <button class="ammobtn" data-a="7">RAILGUN<span class="q cnt" data-c="7">0</span></button>
-      <button class="ammobtn" data-a="3">CLUSTER<span class="q cnt" data-c="3">0</span></button>
-      <button class="ammobtn" data-a="5">LION<span class="q cnt" data-c="5">0</span></button>
-      <button class="ammobtn" data-a="8">NAPALM<span class="q cnt" data-c="8">0</span></button>
-      <button class="ammobtn" data-a="9">WELL<span class="q cnt" data-c="9">0</span></button>
-      <button class="ammobtn" data-a="10">STING<span class="q cnt" data-c="10">0</span></button>
-      <button class="ammobtn" data-a="11">MORTAR<span class="q cnt" data-c="11">0</span></button>
-      <button class="ammobtn" data-a="12">BREACH<span class="q cnt" data-c="12">0</span></button>
-    </div>
+    <div id="ammo"><!-- generated from AMMO_CATS at boot — single source of truth --></div>
     <button id="fire">FIRE</button>
   </div>
 </div>
@@ -419,7 +401,7 @@
   </div>
   <button id="newCampBtn" class="hidden" style="margin-top:14px;font-size:10px;padding:8px 16px;
     border-color:rgba(255,51,102,.5);color:var(--red)">START NEW CAMPAIGN (DISCARD PROGRESS)</button>
-  <div id="buildtag">BUILD 2.1.1 · FIELD MANUAL</div>
+  <div id="buildtag">BUILD 2.2 · ESCALATION</div>
   <div id="onlinePanel" class="hidden">
     <div class="orow">
       <button id="quickBtn">⚡ QUICK MATCH</button>
@@ -650,11 +632,21 @@ const MAPS=[
 /* ---------- AI archetypes (local fallback commander) ---------- */
 const ARCH=[
  {name:'GUNNER', ammo:[[0,0.85],[11,0.15]],           err:13, learn:0.9,  moveProb:0.15, moveRange:60,  aggro:false},
- {name:'WARDEN', ammo:[[0,0.45],[8,0.45],[11,0.1]],   err:10, learn:0.8,  moveProb:0.25, moveRange:80,  aggro:false},
+ {name:'WARDEN', ammo:[[0,0.55],[8,0.35],[11,0.1]],   err:11, learn:0.65, moveProb:0.25, moveRange:80,  aggro:false},
  {name:'SNIPER', ammo:[[7,0.6],[10,0.15],[0,0.25]],   err:5,  learn:0.35, moveProb:0,    moveRange:0,   aggro:false},
  {name:'BRAWLER',ammo:[[1,0.6],[12,0.12],[0,0.28]],   err:9,  learn:0.8,  moveProb:0.6,  moveRange:110, aggro:true},
  {name:'WRAITH', ammo:[[2,0.35],[3,0.25],[4,0.25],[10,0.15]], err:8, learn:1.1, moveProb:0.9, moveRange:130, aggro:false},
 ];
+/* ---------- streak powerups (2.2: pool of six, curated 1+1+1 draw) ---------- */
+const POWERUPS={
+  over:   {label:'OVERCHARGE',     desc:'next shot: 1.5× damage, 1.4× blast'},
+  spike:  {label:'SEISMIC SPIKE',  desc:'collapse the ground under the enemy'},
+  phantom:{label:'PHANTOM PLATING',desc:'fully absorbs the next hit you take'},
+  drone:  {label:'AEGIS DRONE',    desc:'intercepts 3 direct hits · splash leaks through'},
+  tp:     {label:'TELEPORT',       desc:'tap anywhere — instant relocation'},
+  rampart:{label:'RAMPART',        desc:'raise a dirt berm in front of your hull'},
+};
+const POWERUP_CATS=[['over','spike'],['phantom','drone'],['tp','rampart']];  /* offense / defense / utility */
 function pickWeighted(pairs){
   const tot=pairs.reduce((s,p)=>s+p[1],0)||1;
   let r=Math.random()*tot, acc=0;
@@ -663,11 +655,10 @@ function pickWeighted(pairs){
 }
 
 /* ---------- ammo ---------- */
-const AMMO_NAMES=['SHELL','HEAVY','BOUNCER','CLUSTER','SEEKER','LION','BIGBOY','RAILGUN','NAPALM','WELL','STING','MORTAR','BREACHER'];
 const AMMO=[
  {name:'SHELL',  r:26, dmg:34, gscale:1,   wscale:1,   bounces:0, speed:1,    color:'#ffffff'},
  {name:'HEAVY',  r:46, dmg:52, gscale:1.10,wscale:0.45,bounces:0, speed:0.97, color:'#ffb300'},
- {name:'BOUNCER',r:22, dmg:30, gscale:1,   wscale:1,   bounces:2, speed:1.05, color:'#00ffa8'},
+ {name:'BOUNCER',r:22, dmg:30, gscale:1,   wscale:1,   bounces:2, speed:1.05, color:'#00ffa8', abbr:'BOUNCE'},
  {name:'CLUSTER',r:18, dmg:16, gscale:1,   wscale:1,   bounces:0, speed:0.98, color:'#8f6bff', cluster:4, airburst:true},
  {name:'SEEKER', r:24, dmg:30, gscale:0.95,wscale:0.7, bounces:0, speed:0.95, color:'#ff6ec7', seek:2.2, seekAfter:0.55},
  {name:'LION',   r:30, dmg:22, gscale:1,   wscale:0,   bounces:0, speed:1,    color:'#ffd24a', lion:true, special:true},
@@ -679,8 +670,9 @@ const AMMO=[
     All three clear the 816–1008 spawn gap; see arsenal notes before retuning. */
  {name:'STING',   r:16, dmg:24, gscale:0.95,wscale:0.5, bounces:0, speed:1.12, color:'#4dfadd', seek:3.4, seekAfter:0.22, chassis:0},
  {name:'MORTAR',  r:40, dmg:46, gscale:1.60,wscale:0.85,bounces:0, speed:1.20, color:'#ffc46b', chassis:1},
- {name:'BREACHER',r:44, dmg:50, gscale:1.05,wscale:0.6, bounces:0, speed:1.10, color:'#c9d4ff', drill:90, drillR:7, chassis:2},
+ {name:'BREACHER',r:44, dmg:50, gscale:1.05,wscale:0.6, bounces:0, speed:1.10, color:'#c9d4ff', drill:90, drillR:7, chassis:2, abbr:'BREACH'},
 ];
+const AMMO_NAMES=AMMO.map(a=>a.name);   /* derived — AMMO[] is the only truth */
 /* ---------- munition categories — one source of truth ----------
    Grouping and order are shared by the loadout picker, the requisitions shop
    and the in-game rail, so a round sits in the same family everywhere. */
@@ -693,7 +685,6 @@ const AMMO_CATS=[
 ];
 const AMMO_CAT_OF={};                 /* ammo index → its category */
 AMMO_CATS.forEach(c=>c.idx.forEach(i=>{ AMMO_CAT_OF[i]=c; }));
-const AMMO_ORDER=AMMO_CATS.flatMap(c=>c.idx);   /* canonical display order across the game */
 /* one short blurb per round, reused wherever a round is described */
 const AMMO_BLURB={0:'free · always loaded',1:'big crater, resists wind',2:'two ricochets',
   3:'airburst → 4 bomblets',4:'homes in mid-flight',5:'map-wide strike',6:'huge blast, unguided',
@@ -812,7 +803,7 @@ function loCost(a){ let c=0; for(let i=1;i<AMMO_COST.length;i++) c+=(a[i]||0)*AM
    Each carries its chassis's specialist round; weights below decide usage. */
 const ARCH_LOADOUT=[
  {chassis:1, ammo:[0,3,0,0,0,0,0,0,0,0,0,1,0]},   /* GUNNER  — shells + heavies + a mortar */
- {chassis:1, ammo:[0,0,0,0,0,0,0,0,4,0,0,1,0]},   /* WARDEN  — napalm, denies ground */
+ {chassis:1, ammo:[0,0,0,0,0,0,0,0,3,0,0,1,0]},   /* WARDEN  — napalm, denies ground (4→3, balance 2.2) */
  {chassis:0, ammo:[0,0,0,0,0,0,0,4,0,0,2,0,0]},   /* SNIPER  — railgun + stings, fragile and precise */
  {chassis:2, ammo:[0,5,0,0,0,0,0,0,0,0,0,0,1]},   /* BRAWLER — bulwark full of heavies + a breacher */
  {chassis:0, ammo:[0,0,3,2,2,0,0,0,0,0,2,0,0]},   /* WRAITH  — evasive, trick shots */
@@ -1399,6 +1390,19 @@ class Terrain{
     if(changed) this.paint(x0-3,y0-3,(x1-x0)+7,(y1-y0)+7);
     return changed;
   }
+  deposit(cx,cy,r){
+    /* carve's inverse (BUILD 2.2): raise dirt into EMPTY cells only — crystal
+       and existing dirt untouched. Deterministic; repaints like carve. */
+    const x0=Math.max(0,Math.floor(cx-r)), x1=Math.min(this.w-1,Math.ceil(cx+r));
+    const y0=Math.max(0,Math.floor(cy-r)), y1=Math.min(this.hh-1,Math.ceil(cy+r));
+    let changed=false;
+    for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+      const dx=x-cx, dy=y-cy;
+      if(dx*dx+dy*dy<=r*r && this.mask[y*this.w+x]===0){ this.mask[y*this.w+x]=1; changed=true; }
+    }
+    if(changed) this.paint(x0-3,y0-3,(x1-x0)+7,(y1-y0)+7);
+    return changed;
+  }
   paint(px,py,pw,ph){
     px=Math.max(0,px|0); py=Math.max(0,py|0);
     pw=Math.min(this.w-px,pw|0); ph=Math.min(this.hh-py,ph|0);
@@ -1662,6 +1666,7 @@ class Tank{
     this.lionTarget=null;
     this.tripleTurret=false; this.eggTaps=0; this.eggLast=0;
     this.hitStreak=0; this.powerup=null; this.pendingPick=false; this.phantomJustUsed=false;
+    this.drone=null;   /* AEGIS: {hits, turns} while deployed */
     this.shotDealtDamage=false;
   }
   muzzle(){
@@ -1914,9 +1919,9 @@ function dismissHint(){
   if(hintQueue.length) setTimeout(showNextHint,400);
 }
 $('hintband').addEventListener('click',dismissHint);
-let radioTimer=null;
+let radioTimer=null, radioLock=false;
 function radioMsg(msg){
-  if(!msg) return;
+  if(!msg||radioLock) return;   /* the visitor's line cannot be talked over */
   ui.radio.textContent='» '+msg;
   ui.radio.classList.add('show');
   clearTimeout(radioTimer);
@@ -2194,8 +2199,8 @@ class Game{
     const badge=$('pubadge');
     if(hpow){
       badge.classList.remove('hidden');
-      badge.textContent={over:'◆ OVERCHARGE',phantom:'◆ PHANTOM',tp:'◆ TELEPORT'}[hpow.type];
-      badge.disabled = hpow.type!=='tp';
+      badge.textContent='◆ '+POWERUPS[hpow.type].label;
+      badge.disabled = !['tp','drone','rampart','spike'].includes(hpow.type);
       badge.classList.toggle('armed', this.phase==='tptarget');
     } else if(!this.humanTank().pendingPick){
       badge.classList.add('hidden');
@@ -2340,6 +2345,18 @@ class Game{
   offerPowerup(t){
     t.pendingPick=true;
     this.pickFor=t;
+    /* Curated draw (2.2): one offense, one defense, one utility — every streak
+       is a real decision. The OFFER is local UI only; determinism lives in the
+       chosen powerup, which already rides the snapshot. */
+    const draw=POWERUP_CATS.map(cat=>cat[Math.floor(Math.random()*cat.length)]);
+    const box=$('powerpick').querySelector('.pbtns'); box.innerHTML='';
+    for(const type of draw){
+      const p=POWERUPS[type];
+      const b=document.createElement('button');
+      b.className='pubtn'; b.dataset.p=type;
+      b.innerHTML='<b>'+p.label+'</b>'+p.desc;
+      box.appendChild(b);
+    }
     $('powerpick').classList.remove('hidden');
     toast((this.mode==='hotseat'?(t===this.t1?'P1':'P2')+' — ':'')+'2-HIT STREAK · POWERUP EARNED');
   }
@@ -2347,7 +2364,7 @@ class Game{
     t.powerup={type};
     t.pendingPick=false;
     $('powerpick').classList.add('hidden');
-    toast({over:'OVERCHARGE ARMED',phantom:'PHANTOM PLATING ACTIVE',tp:'TELEPORT READY'}[type]);
+    toast(POWERUPS[type].label+({over:' ARMED',phantom:' ACTIVE'}[type]||' READY'));
     this.particles.burst(t.x,t.y-10,'#8f6bff',24,180,1,2.6);
     this.updateHUD();
   }
@@ -2363,6 +2380,64 @@ class Game{
     this.phase=this.rt?'rt':'aim';
     this.strikeMark=null;
     toast('TELEPORT COMPLETE');
+    this.updateHUD();
+  }
+  tickDrones(){
+    for(const gt of [this.t1,this.t2]){
+      if(!gt.drone) continue;
+      gt.drone.turns--;
+      if(gt.drone.turns<=0){ gt.drone=null; if(gt.human) toast('AEGIS EXPIRED'); }
+    }
+  }
+  /* ---- 2.2 streak powerups: instant uses ---- */
+  deployDrone(t){
+    /* 3 intercepts or 4 half-turns, whichever first. Free action. */
+    t.drone={hits:3, turns:4};
+    t.powerup=null;
+    this.particles.burst(t.x,t.y-46,'#8f6bff',22,160,0.9,2.4);
+    this.rings.push({x:t.x,y:t.y-46,r:4,max:40,c:'#8f6bff',a:1});
+    toast('AEGIS DEPLOYED — 3 INTERCEPTS');
+    this.updateHUD();
+  }
+  raiseRampart(t){
+    /* a dirt berm between you and them — terrain-physical defense.
+       Deterministic; built from the ground up so it can never float. */
+    const enemy = t===this.t1 ? this.t2 : this.t1;
+    const dir = enemy.x>t.x ? 1 : -1;
+    const bx = t.x + dir*58;
+    const gy = this.terr.surfaceY(bx);
+    const guard=(x)=>Math.abs(x-this.t1.x)>26 && Math.abs(x-this.t2.x)>26;
+    for(let k=-2;k<=2;k++){
+      const cx=bx+k*9;
+      if(!guard(cx)) continue;                    /* never entomb a hull */
+      const h=14+(2-Math.abs(k))*9;               /* mound profile */
+      this.terr.deposit(cx, gy-h, 13);
+      this.terr.deposit(cx, gy-4, 13);            /* root it into the ground */
+    }
+    t.powerup=null;
+    this.particles.burst(bx,gy-18,'#c9a86b',26,140,0.9,2.6);
+    this.shake=Math.max(this.shake,3);
+    SFX.thud(900);
+    toast('RAMPART RAISED');
+    this.updateHUD();
+  }
+  seismicSpike(t){
+    /* open the ground under them and let gravity do the damage */
+    const e = t===this.t1 ? this.t2 : this.t1;
+    const sy=this.terr.surfaceY(e.x);
+    /* carve THROUGH the surface, not merely under it — a first cut left a 6px
+       crust the target kept standing on (caught by powerups_test, not by eye) */
+    this.terr.carve(e.x-18, sy+10, 13);
+    this.terr.carve(e.x,    sy+8,  15);
+    this.terr.carve(e.x+18, sy+10, 13);
+    this.terr.carve(e.x,    sy+24, 13);   /* and give the pit depth */
+    this.collapseAt(e.x, sy+14, 44);
+    t.powerup=null;
+    this.particles.burst(e.x,sy+6,'#ffb300',30,200,1.0,2.8);
+    this.rings.push({x:e.x,y:sy+6,r:6,max:60,c:'#ffb300',a:1});
+    this.shake=Math.max(this.shake,5);
+    SFX.collapse(1400);
+    toast('SEISMIC SPIKE');
     this.updateHUD();
   }
   /* ---- LION drone strike ---- */
@@ -2906,6 +2981,7 @@ class Game{
   endTurn(){
     if(this.replaying) return;   /* the snapshot ends the turn, not local physics */
     this.dodgeFor=null; this.aiDodgeTo=null;   /* dodge window closes with the shot */
+    this.tickDrones();
     if(this.rt) return;
     if(this.online){
       const iActed = (this.turn===NET.myTank);
@@ -2972,14 +3048,14 @@ class Game{
           tgt.damage(45);
         }
         if(m.volley>=6){
-          m.phase='laugh'; m.t=0;
+          m.phase='laugh'; m.t=0; radioLock=true;
           const r=$('radio');
           if(r){ r.textContent='HA HA HA — IT\'S ONLY PLAY TIME FOR ME!'; r.classList.add('show'); }
         }
       }
     } else if(m.phase==='laugh'){
       if(m.t>2.4){
-        m.phase='out'; m.t=0;
+        m.phase='out'; m.t=0; radioLock=false;
         const r=$('radio'); if(r) r.classList.remove('show');
       }
     } else if(m.phase==='out'){
@@ -3156,7 +3232,34 @@ class Game{
       const pull=h.g*(1-d/h.r);
       p.vx+=(dx/d)*pull*dt; p.vy+=(dy/d)*pull*dt;
     }
-    p.x+=p.vx*dt; p.y+=p.vy*dt; p.age+=dt;
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    /* AEGIS intercept (2.2): a hostile round entering the bubble on a
+       direct-collision course with the protected hull is destroyed. Splash
+       from near-misses passes untouched — the test is the trajectory's
+       perpendicular distance to the hull, not mere proximity. Deterministic. */
+    for(const gt of [this.t1,this.t2]){
+      const dr=gt.drone;
+      if(!dr||dr.hits<=0||p.owner===gt||gt.dead) continue;
+      const dx=p.x-gt.x, dy=p.y-(gt.y-46);
+      if(dx*dx+dy*dy>34*34) continue;
+      /* direct-course test: does the velocity ray pass within 22px of the hull? */
+      const rx=gt.x-p.x, ry=(gt.y-8)-p.y;
+      const sp2=Math.hypot(p.vx,p.vy)||1;
+      const perp=Math.abs(p.vx*ry-p.vy*rx)/sp2;
+      const closing=(p.vx*rx+p.vy*ry)>0;
+      if(perp>22||!closing) continue;
+      dr.hits--;
+      this.rings.push({x:p.x,y:p.y,r:3,max:30,c:'#8f6bff',a:1});
+      this.particles.spark(p.x,p.y,'#8f6bff');
+      SFX.ricochet(true);
+      if(dr.hits<=0){ gt.drone=null; toast('AEGIS SPENT'); }
+      if(am.bigboy){
+        /* standoff detonation: the blast is real, just further away */
+        this.explode(p.x,p.y,am,null,p.owner,p.shotId);
+      }
+      this.onDetonate(p);
+      return false;
+    } p.age+=dt;
     /* CLUSTER — airburst at the top of the arc, so the bomblets rain down
        over a wide footprint instead of piling into the parent crater. */
     if(am.airburst && !p.split && p.kind==='main' && p.vy>=0 && p.age>0.25){
@@ -3364,6 +3467,8 @@ class Game{
   update(dt){
     this.particles.update(dt);
     this.updateMonster(dt);
+    if(this.rt) for(const gt of [this.t1,this.t2])
+      if(gt.drone && (gt.drone.turns-=dt/4)<=0){ gt.drone=null; if(gt.human) toast('AEGIS EXPIRED'); }
     if(this.shake>0) this.shake=Math.max(0,this.shake-dt*26);
     this.rings=this.rings.filter(f=>{ f.r+=dt*300; f.a-=dt*2.4; return f.a>0; });
     this.flashes=this.flashes.filter(f=>{ f.t+=dt; return f.t<0.09; });
@@ -3776,6 +3881,24 @@ class Game{
     if(!this.t1.dead) this.t1.draw(c); else this.drawWreck(c,this.t1);
     if(!this.t2.dead) this.t2.draw(c); else this.drawWreck(c,this.t2);
     this.drawMonster(c);
+    for(const gt of [this.t1,this.t2]){
+      if(!gt.drone||gt.dead) continue;
+      const bob=Math.sin(performance.now()/300)*3;
+      const dx=gt.x, dy=gt.y-46+bob;
+      c.save();
+      c.strokeStyle='#8f6bff'; c.shadowColor='#8f6bff'; c.shadowBlur=12;
+      c.lineWidth=1.6;
+      c.beginPath();                                   /* the drone: a small hex */
+      for(let i=0;i<6;i++){ const a=i*Math.PI/3;
+        c[i?'lineTo':'moveTo'](dx+Math.cos(a)*7, dy+Math.sin(a)*7); }
+      c.closePath(); c.stroke();
+      c.globalAlpha=0.25+0.1*Math.sin(performance.now()/200);
+      c.beginPath(); c.arc(gt.x,gt.y-46,34,0,Math.PI*2); c.stroke();   /* the bubble */
+      c.globalAlpha=1;
+      c.fillStyle='#8f6bff'; c.font='8px monospace'; c.textAlign='center';
+      c.shadowBlur=6; c.fillText('×'+gt.drone.hits, dx, dy-12);
+      c.restore();
+    }
     this.particles.draw(c);
     c.setTransform(DPR,0,0,DPR,0,0);
     this.drawStorm(c);
@@ -3920,16 +4043,27 @@ window.addEventListener('touchstart',pdown,{passive:true});
 window.addEventListener('touchmove',pmove,{passive:true});
 window.addEventListener('touchend',pup);
 
-document.querySelectorAll('.ammobtn').forEach(b=>{
-  b.addEventListener('click',()=>{
-    if(!game) return;
-    const t=game.humanTank(), i=+b.dataset.a;
-    if(t.ammo[i]>0){ SFX.ui(); t.ammoSel=i; game.updateHUD(); }
-  });
-  /* left-edge tint marks the munition category, matching the loadout and shop */
-  const cat=AMMO_CAT_OF[+b.dataset.a];
-  if(cat){ b.style.borderLeftColor=cat.accent; b.style.borderLeftWidth='3px'; }
-});
+/* Rail is generated from AMMO_CATS so its order, membership and tint can never
+   drift from the categories (they did, by hand, in 1.9 and 2.0). */
+(function buildRail(){
+  const rail=$('ammo'); rail.innerHTML='';
+  for(const cat of AMMO_CATS) for(const i of cat.idx){
+    const b=document.createElement('button');
+    b.className='ammobtn'+(i===0?' sel':''); b.dataset.a=i;
+    b.textContent=AMMO[i].abbr||AMMO[i].name;
+    const q=document.createElement('span');
+    q.className=i===0?'q':'q cnt'; if(i!==0) q.dataset.c=i;
+    q.textContent=i===0?'∞':'0';
+    b.appendChild(q);
+    b.style.borderLeftColor=cat.accent; b.style.borderLeftWidth='3px';
+    b.addEventListener('click',()=>{
+      if(!game) return;
+      const t=game.humanTank();
+      if(t.ammo[i]>0){ SFX.ui(); t.ammoSel=i; game.updateHUD(); }
+    });
+    rail.appendChild(b);
+  }
+})();
 ui.fire.addEventListener('click',()=>{ SFX.ui(); playerFire(); });
 function playerFire(){
   if(!game||!game.canPlayerFire()) return;
@@ -4150,17 +4284,27 @@ $('loBack').addEventListener('click',()=>{
 });
 
 /* ---------- powerups ---------- */
-document.querySelectorAll('.pubtn').forEach(b=>{
-  b.addEventListener('click',()=>{
-    if(!game||!game.pickFor) return;
-    game.applyPowerup(game.pickFor, b.dataset.p);
-    game.pickFor=null;
-  });
+$('powerpick').addEventListener('click',e=>{
+  const b=e.target.closest('.pubtn');
+  if(!b||!game||!game.pickFor) return;
+  game.applyPowerup(game.pickFor, b.dataset.p);
+  game.pickFor=null;
 });
 $('pubadge').addEventListener('click',()=>{
   if(!game) return;
   const t=game.humanTank();
-  if(!t.powerup||t.powerup.type!=='tp') return;
+  if(!t.powerup) return;
+  if(['drone','rampart','spike'].includes(t.powerup.type)){
+    const okNow=game.rt ? (!game.t1.dead&&game.phase!=='over') : (game.humanActive()&&game.phase==='aim');
+    if(!okNow) return;
+    SFX.ui();
+    const type=t.powerup.type;
+    if(type==='drone')   game.deployDrone(t);
+    if(type==='rampart') game.raiseRampart(t);
+    if(type==='spike')   game.seismicSpike(t);
+    return;
+  }
+  if(t.powerup.type!=='tp') return;
   if(game.phase==='tptarget'){ /* cancel */
     game.phase=game.rt?'rt':'aim'; game.strikeMark=null; game.updateHUD(); return;
   }
@@ -4424,11 +4568,13 @@ function serializeState(g,by){
     t1:{x:+g.t1.x.toFixed(1),y:+g.t1.y.toFixed(1),hp:g.t1.hp,dead:g.t1.dead,
         ammo:g.t1.ammo.map(a=>a===Infinity?-1:a),charges:g.t1.charges,
         powerup:g.t1.powerup?g.t1.powerup.type:null,missStreak:g.t1.missStreak,hitStreak:g.t1.hitStreak,
-        supportUnlocked:g.t1.supportUnlocked, tri:!!g.t1.tripleTurret},
+        supportUnlocked:g.t1.supportUnlocked, tri:!!g.t1.tripleTurret,
+        drone:g.t1.drone?{h:g.t1.drone.hits,t:+g.t1.drone.turns.toFixed(1)}:null},
     t2:{x:+g.t2.x.toFixed(1),y:+g.t2.y.toFixed(1),hp:g.t2.hp,dead:g.t2.dead,
         ammo:g.t2.ammo.map(a=>a===Infinity?-1:a),charges:g.t2.charges,
         powerup:g.t2.powerup?g.t2.powerup.type:null,missStreak:g.t2.missStreak,hitStreak:g.t2.hitStreak,
-        supportUnlocked:g.t2.supportUnlocked, tri:!!g.t2.tripleTurret},
+        supportUnlocked:g.t2.supportUnlocked, tri:!!g.t2.tripleTurret,
+        drone:g.t2.drone?{h:g.t2.drone.hits,t:+g.t2.drone.turns.toFixed(1)}:null},
     wind:+g.wind.toFixed(2),
     hurricane:!!g.hurricane,
     hazards:g.hazards.map(h=>({t:h.type==='fire'?0:1,x:+h.x.toFixed(0),y:+h.y.toFixed(0),
@@ -4506,6 +4652,7 @@ function applyState(g,st,skipReplay){
     tk.ammo=d.ammo.map(a=>a===-1?Infinity:a);
     tk.charges=d.charges; tk.missStreak=d.missStreak||0; tk.hitStreak=d.hitStreak||0;
     tk.supportUnlocked=d.supportUnlocked; tk.powerup=d.powerup?{type:d.powerup}:null;
+    tk.drone=d.drone?{hits:d.drone.h,turns:d.drone.t}:null;
     tk.tripleTurret=!!d.tri;
   };
   load(g.t1,st.t1); load(g.t2,st.t2);
